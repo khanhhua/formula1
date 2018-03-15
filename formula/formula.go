@@ -1,0 +1,205 @@
+package engine
+
+import (
+	"fmt"
+
+	"github.com/xuri/efp"
+)
+
+// NodeType Descriptor of node in Formula1 AST
+type NodeType int8
+
+const (
+	// NodeTypeRoot Root of AST
+	NodeTypeRoot NodeType = 1
+	// NodeTypeLiteral Literal node, value should be understood as is
+	NodeTypeLiteral NodeType = 2
+	// NodeTypeRef Reference node, value should be dereffed
+	NodeTypeRef NodeType = 3
+	// NodeTypeFunc Function call node, value must be executed
+	NodeTypeFunc NodeType = 4
+	// NodeTypeOperator Infix operator
+	NodeTypeOperator NodeType = 5
+)
+
+var PRECEDENCE = map[string]int{
+	"+": 1,
+	"-": 1,
+	"*": 2,
+	"/": 2,
+}
+
+// Node AST node
+type Node struct {
+	value      string
+	nodeType   NodeType
+	children   []*Node
+	parent     *Node
+	infixChild *Node
+}
+
+// Formula Formula1 executable formula
+type Formula struct {
+	root Node
+}
+
+// NewFormula Create a new formula instance
+func NewFormula(text string) *Formula {
+	parser := efp.ExcelParser()
+	parser.Parse(text)
+	fmt.Printf("%s\n=====\n", parser.PrettyPrint())
+
+	tokens := parser.Tokens.Items
+	root := Node{
+		value:    "root",
+		nodeType: NodeTypeRoot,
+		children: nil,
+	}
+
+	current := &root
+	index := 0
+	count := len(tokens)
+
+	var token *efp.Token
+
+	for index < count {
+		token = &tokens[index]
+		value := token.TValue
+		ttype := token.TType
+		tsubtype := token.TSubType
+
+		if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
+			current = current.makeNode(NodeTypeFunc, value) // aka.PUSH the stack
+		} else if ttype == efp.TokenTypeOperand {
+			if index+1 >= count {
+				if current.nodeType == NodeTypeRoot {
+					current.children = append(current.children, current.infixChild)
+					current.resetInfixChild()
+				}
+				break
+			}
+
+			if tokens[index+1].TType == efp.TokenTypeOperatorInfix { // Look ahead
+				var node *Node
+				if index+2 < count && tokens[index+2].TType == efp.TokenTypeOperand {
+					if current.infixChild == nil {
+						node = current.makeInfixChild(tokens[index+1].TValue) // Infix-Operators: = + - * /
+
+						node.makeNode(resolveNodeType(ttype, tsubtype), value)
+						node.makeNode(resolveNodeType(tokens[index+2].TType, tokens[index+2].TSubType), tokens[index+2].TValue)
+					} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
+						if current.infixChild != nil {
+							current.children = append(current.children, current.infixChild)
+							current.resetInfixChild()
+						}
+					} else {
+						node = current.makeInfixChild(tokens[index+1].TValue)
+						node.makeNode(resolveNodeType(tokens[index+2].TType, tokens[index+2].TSubType), tokens[index+2].TValue)
+					}
+
+					index += 2
+					continue
+				} else {
+					current.makeNode(resolveNodeType(ttype, tsubtype), value)
+				}
+			} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
+				if current.infixChild != nil {
+					current.children = append(current.children, current.infixChild)
+					current.resetInfixChild()
+				} else {
+					current.makeNode(resolveNodeType(ttype, tsubtype), value)
+				}
+			} else {
+				current.makeNode(resolveNodeType(ttype, tsubtype), value)
+			}
+		} else if tsubtype == efp.TokenSubTypeStop {
+			current = current.parent // aka.POP the stack
+		}
+
+		index++
+	}
+
+	formula := Formula{
+		root: root,
+	}
+	return &formula
+}
+
+func (parent *Node) makeNode(nodeType NodeType, value string) *Node {
+	node := Node{
+		value:    value,
+		nodeType: nodeType,
+		parent:   parent,
+		children: nil,
+	}
+	if parent.children == nil {
+		parent.children = []*Node{&node}
+	} else {
+		parent.children = append(parent.children, &node)
+	}
+
+	return &node
+}
+
+func (parent *Node) makeInfixChild(value string) *Node {
+	if parent.infixChild == nil {
+		parent.infixChild = &Node{
+			value:    value,
+			nodeType: NodeTypeOperator,
+			parent:   parent,
+			children: []*Node{},
+		}
+	} else if parent.infixChild.value != value {
+		// Infix precedence resolution
+		if PRECEDENCE[value] > PRECEDENCE[parent.infixChild.value] {
+			// Detach the last child and append it to the new node's children
+			temp := parent.infixChild
+			node := &Node{
+				children: []*Node{
+					temp,
+					temp.children[temp.childCount()-1],
+				},
+			}
+			temp.children[temp.childCount()-1].parent = node
+			temp.children = temp.children[:temp.childCount()-2]
+
+			parent.infixChild = node
+		} else {
+			// Simply wrap the existing infixChild inside the new one
+			temp := parent.infixChild
+			node := &Node{
+				children: []*Node{
+					temp,
+				},
+			}
+			parent.infixChild = node
+		}
+	}
+
+	return parent.infixChild
+}
+
+func (parent *Node) resetInfixChild() {
+	parent.infixChild = nil
+}
+
+func resolveNodeType(ttype string, tsubtype string) NodeType {
+	if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
+		return NodeTypeFunc
+	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeRange {
+		return NodeTypeRef
+	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeText {
+		return NodeTypeLiteral
+	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeNumber {
+		return NodeTypeLiteral
+	}
+
+	return NodeTypeLiteral
+}
+
+func (parent *Node) childCount() int {
+	if parent.children == nil {
+		return 0
+	}
+	return len(parent.children)
+}
