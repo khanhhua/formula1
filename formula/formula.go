@@ -77,6 +77,20 @@ func NewFormula(text string) *Formula {
 					current.resetInfixChild()
 				}
 				break
+			} else if current.infixChild != nil {
+				if tokens[index+1].TType == efp.TokenTypeArgument {
+					current.children = append(current.children, current.infixChild)
+					current.resetInfixChild()
+
+					index++
+					continue
+				} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
+					current.children = append(current.children, current.infixChild)
+					current.resetInfixChild()
+
+					index++
+					continue
+				}
 			}
 
 			if tokens[index+1].TType == efp.TokenTypeOperatorInfix { // Look ahead
@@ -99,13 +113,6 @@ func NewFormula(text string) *Formula {
 
 					index += 2
 					continue
-				} else {
-					current.makeNode(resolveNodeType(ttype, tsubtype), value)
-				}
-			} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
-				if current.infixChild != nil {
-					current.children = append(current.children, current.infixChild)
-					current.resetInfixChild()
 				} else {
 					current.makeNode(resolveNodeType(ttype, tsubtype), value)
 				}
@@ -202,4 +209,20 @@ func (parent *Node) childCount() int {
 		return 0
 	}
 	return len(parent.children)
+}
+
+func (parent *Node) firstChild() *Node {
+	if parent.children == nil || len(parent.children) == 0 {
+		return nil
+	}
+
+	return parent.children[0]
+}
+
+func (parent *Node) lastChild() *Node {
+	if parent.children == nil || len(parent.children) == 0 {
+		return nil
+	}
+
+	return parent.children[len(parent.children)-1]
 }
