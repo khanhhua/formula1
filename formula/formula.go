@@ -1,7 +1,8 @@
-package engine
+package formula
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/xuri/efp"
 )
@@ -14,12 +15,16 @@ const (
 	NodeTypeRoot NodeType = 1
 	// NodeTypeLiteral Literal node, value should be understood as is
 	NodeTypeLiteral NodeType = 2
+	// NodeTypeLiteral Literal node, value should be understood as is
+	NodeTypeInteger NodeType = 3
+	// NodeTypeLiteral Literal node, value should be understood as is
+	NodeTypeFloat NodeType = 4
 	// NodeTypeRef Reference node, value should be dereffed
-	NodeTypeRef NodeType = 3
+	NodeTypeRef NodeType = 5
 	// NodeTypeFunc Function call node, value must be executed
-	NodeTypeFunc NodeType = 4
+	NodeTypeFunc NodeType = 6
 	// NodeTypeOperator Infix operator
-	NodeTypeOperator NodeType = 5
+	NodeTypeOperator NodeType = 7
 )
 
 var PRECEDENCE = map[string]int{
@@ -31,7 +36,7 @@ var PRECEDENCE = map[string]int{
 
 // Node AST node
 type Node struct {
-	value      string
+	value      interface{}
 	nodeType   NodeType
 	children   []*Node
 	parent     *Node
@@ -64,17 +69,22 @@ func NewFormula(text string) *Formula {
 
 	for index < count {
 		token = &tokens[index]
-		value := token.TValue
+		tvalue := token.TValue
 		ttype := token.TType
 		tsubtype := token.TSubType
+		var value interface{}
+		var nodeType NodeType
 
 		if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
-			current = current.makeNode(NodeTypeFunc, value) // aka.PUSH the stack
+			current = current.makeNode(NodeTypeFunc, tvalue) // aka.PUSH the stack
 		} else if ttype == efp.TokenTypeOperand {
 			if index+1 >= count {
-				if current.nodeType == NodeTypeRoot {
+				if current.nodeType == NodeTypeRoot && current.infixChild != nil {
 					current.children = append(current.children, current.infixChild)
 					current.resetInfixChild()
+				} else if current.nodeType == NodeTypeRoot {
+					value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+					current.makeNode(nodeType, value)
 				}
 				break
 			} else if current.infixChild != nil {
@@ -98,9 +108,12 @@ func NewFormula(text string) *Formula {
 				if index+2 < count && tokens[index+2].TType == efp.TokenTypeOperand {
 					if current.infixChild == nil {
 						node = current.makeInfixChild(tokens[index+1].TValue) // Infix-Operators: = + - * /
+						value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+						node.makeNode(nodeType, value)
 
-						node.makeNode(resolveNodeType(ttype, tsubtype), value)
-						node.makeNode(resolveNodeType(tokens[index+2].TType, tokens[index+2].TSubType), tokens[index+2].TValue)
+						value, nodeType = resolveNodeType(tokens[index+2].TType,
+							tokens[index+2].TSubType, tokens[index+2].TValue)
+						node.makeNode(nodeType, value)
 					} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
 						if current.infixChild != nil {
 							current.children = append(current.children, current.infixChild)
@@ -108,16 +121,20 @@ func NewFormula(text string) *Formula {
 						}
 					} else {
 						node = current.makeInfixChild(tokens[index+1].TValue)
-						node.makeNode(resolveNodeType(tokens[index+2].TType, tokens[index+2].TSubType), tokens[index+2].TValue)
+						value, nodeType = resolveNodeType(tokens[index+2].TType,
+							tokens[index+2].TSubType, tokens[index+2].TValue)
+						node.makeNode(nodeType, value)
 					}
 
 					index += 2
 					continue
 				} else {
-					current.makeNode(resolveNodeType(ttype, tsubtype), value)
+					value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+					current.makeNode(nodeType, value)
 				}
 			} else {
-				current.makeNode(resolveNodeType(ttype, tsubtype), value)
+				value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+				current.makeNode(nodeType, value)
 			}
 		} else if tsubtype == efp.TokenSubTypeStop {
 			current = current.parent // aka.POP the stack
@@ -132,7 +149,11 @@ func NewFormula(text string) *Formula {
 	return &formula
 }
 
-func (parent *Node) makeNode(nodeType NodeType, value string) *Node {
+func (formula *Formula) GetEntryNode() *Node {
+	return formula.root.children[0]
+}
+
+func (parent *Node) makeNode(nodeType NodeType, value interface{}) *Node {
 	node := Node{
 		value:    value,
 		nodeType: nodeType,
@@ -158,17 +179,17 @@ func (parent *Node) makeInfixChild(value string) *Node {
 		}
 	} else if parent.infixChild.value != value {
 		// Infix precedence resolution
-		if PRECEDENCE[value] > PRECEDENCE[parent.infixChild.value] {
+		if PRECEDENCE[value] > PRECEDENCE[parent.infixChild.value.(string)] {
 			// Detach the last child and append it to the new node's children
 			temp := parent.infixChild
 			node := &Node{
 				children: []*Node{
 					temp,
-					temp.children[temp.childCount()-1],
+					temp.children[temp.ChildCount()-1],
 				},
 			}
-			temp.children[temp.childCount()-1].parent = node
-			temp.children = temp.children[:temp.childCount()-2]
+			temp.children[temp.ChildCount()-1].parent = node
+			temp.children = temp.children[:temp.ChildCount()-2]
 
 			parent.infixChild = node
 		} else {
@@ -190,28 +211,50 @@ func (parent *Node) resetInfixChild() {
 	parent.infixChild = nil
 }
 
-func resolveNodeType(ttype string, tsubtype string) NodeType {
+func resolveNodeType(ttype string, tsubtype string, tvalue string) (value interface{}, nodeType NodeType) {
+	var _err error
 	if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
-		return NodeTypeFunc
+		nodeType = NodeTypeFunc
+		value = tvalue
+		return
 	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeRange {
-		return NodeTypeRef
+		nodeType = NodeTypeRef
+		value = tvalue
+		return
 	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeText {
-		return NodeTypeLiteral
+		nodeType = NodeTypeLiteral
+		value = tvalue
+		return
 	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeNumber {
-		return NodeTypeLiteral
+		nodeType = NodeTypeFloat
+		value, _err = strconv.ParseFloat(tvalue, 64)
+		if _err != nil {
+			return
+		}
+		return
 	}
 
-	return NodeTypeLiteral
+	value = tvalue
+	nodeType = NodeTypeLiteral
+	return
 }
 
-func (parent *Node) childCount() int {
+func (node *Node) Value() interface{} {
+	return node.value
+}
+
+func (node *Node) NodeType() NodeType {
+	return node.nodeType
+}
+
+func (parent *Node) ChildCount() int {
 	if parent.children == nil {
 		return 0
 	}
 	return len(parent.children)
 }
 
-func (parent *Node) firstChild() *Node {
+func (parent *Node) FirstChild() *Node {
 	if parent.children == nil || len(parent.children) == 0 {
 		return nil
 	}
@@ -219,10 +262,37 @@ func (parent *Node) firstChild() *Node {
 	return parent.children[0]
 }
 
-func (parent *Node) lastChild() *Node {
+func (parent *Node) LastChild() *Node {
 	if parent.children == nil || len(parent.children) == 0 {
 		return nil
 	}
 
 	return parent.children[len(parent.children)-1]
+}
+
+func (parent *Node) ChildAt(index int) *Node {
+	if index < 0 {
+		return nil
+	} else if index >= len(parent.children) {
+		return nil
+	}
+
+	return parent.children[index]
+}
+
+func (parent *Node) HasChildren() bool {
+	if parent.children == nil {
+		return false
+	} else if len(parent.children) == 0 {
+		return false
+	}
+
+	return true
+}
+
+func (parent *Node) Children() []*Node {
+	if parent.children == nil {
+		return make([]*Node, 0)
+	}
+	return parent.children[:]
 }
