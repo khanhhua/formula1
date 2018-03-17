@@ -12,19 +12,19 @@ type NodeType int8
 
 const (
 	// NodeTypeRoot Root of AST
-	NodeTypeRoot NodeType = 1
+	NodeTypeRoot NodeType = iota + 1
 	// NodeTypeLiteral Literal node, value should be understood as is
-	NodeTypeLiteral NodeType = 2
-	// NodeTypeLiteral Literal node, value should be understood as is
-	NodeTypeInteger NodeType = 3
-	// NodeTypeLiteral Literal node, value should be understood as is
-	NodeTypeFloat NodeType = 4
+	NodeTypeLiteral
+	// NodeTypeInteger Literal node, value should be understood as is
+	NodeTypeInteger
+	// NodeTypeFloat Literal node, value should be understood as is
+	NodeTypeFloat
 	// NodeTypeRef Reference node, value should be dereffed
-	NodeTypeRef NodeType = 5
+	NodeTypeRef
 	// NodeTypeFunc Function call node, value must be executed
-	NodeTypeFunc NodeType = 6
+	NodeTypeFunc
 	// NodeTypeOperator Infix operator
-	NodeTypeOperator NodeType = 7
+	NodeTypeOperator
 )
 
 var PRECEDENCE = map[string]int{
@@ -183,6 +183,9 @@ func (parent *Node) makeInfixChild(value string) *Node {
 			// Detach the last child and append it to the new node's children
 			temp := parent.infixChild
 			node := &Node{
+				value: value,
+				nodeType: NodeTypeOperator,
+				parent: parent,
 				children: []*Node{
 					temp,
 					temp.children[temp.ChildCount()-1],
@@ -196,6 +199,9 @@ func (parent *Node) makeInfixChild(value string) *Node {
 			// Simply wrap the existing infixChild inside the new one
 			temp := parent.infixChild
 			node := &Node{
+				value: value,
+				nodeType: NodeTypeOperator,
+				parent: parent,
 				children: []*Node{
 					temp,
 				},

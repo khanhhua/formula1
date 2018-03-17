@@ -37,12 +37,39 @@ func TestInfixAtRoot(t *testing.T) {
 	}
 }
 
-func TestMultiInfixAtRoot(t *testing.T) {
+func TestMultiOperandInfixAtRoot(t *testing.T) {
 	var formula *Formula
 
 	formula = NewFormula(`=10 + 20 + 30`)
 	if formula.root.FirstChild().ChildCount() != 3 {
-		t.Errorf("Formula root has 2 children")
+		t.Errorf("Formula root has 3 children")
+	}
+}
+
+func TestMultiInfixOperatorAtRoot(t *testing.T) {
+	var formula *Formula
+
+	formula = NewFormula(`=10 + 20 - 30`)
+	if result := formula.root.FirstChild().ChildCount(); result != 2 {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 2\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().Value().(string); result != "-" {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 2\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().ChildCount(); result != 2 {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 2\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().Value().(string); result != "+" {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 10\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().ChildAt(0).Value().(float64); result != 10 {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 10\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().ChildAt(1).Value().(float64); result != 20 {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 20\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().ChildAt(1).Value().(float64); result != 30 {
+		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 1\tActual: %v", result)
 	}
 }
 
@@ -65,7 +92,7 @@ func TestSimpleFunctionWithLiteral(t *testing.T) {
 	if formula.root.FirstChild().nodeType != NodeTypeFunc {
 		t.Errorf("First child is a function")
 	}
-	if formula.root.FirstChild().FirstChild().nodeType != NodeTypeLiteral {
+	if formula.root.FirstChild().FirstChild().nodeType != NodeTypeFloat {
 		t.Errorf("First child is a literal")
 	}
 }
@@ -110,11 +137,11 @@ func TestSimpleFunctionWithInfixExpression(t *testing.T) {
 	if formula.root.FirstChild().FirstChild().nodeType != NodeTypeOperator {
 		t.Errorf("First child is an operator")
 	}
-	if formula.root.FirstChild().FirstChild().FirstChild().nodeType != NodeTypeLiteral {
-		t.Errorf("1st infix operand is a literal")
+	if formula.root.FirstChild().FirstChild().FirstChild().nodeType != NodeTypeFloat {
+		t.Errorf("1st infix operand is a float literal")
 	}
-	if formula.root.FirstChild().FirstChild().children[1].nodeType != NodeTypeLiteral {
-		t.Errorf("2nd infix operand is a literal")
+	if formula.root.FirstChild().FirstChild().children[1].nodeType != NodeTypeFloat {
+		t.Errorf("2nd infix operand is a float literal")
 	}
 
 	formula = NewFormula(`=FLOOR(10.1 + A1)`)
@@ -127,8 +154,8 @@ func TestSimpleFunctionWithInfixExpression(t *testing.T) {
 	if formula.root.FirstChild().FirstChild().nodeType != NodeTypeOperator {
 		t.Errorf("First child is an operator")
 	}
-	if formula.root.FirstChild().FirstChild().FirstChild().nodeType != NodeTypeLiteral {
-		t.Errorf("1st infix operand is a literal")
+	if formula.root.FirstChild().FirstChild().FirstChild().nodeType != NodeTypeFloat {
+		t.Errorf("1st infix operand is a float literal")
 	}
 	if formula.root.FirstChild().FirstChild().children[1].nodeType != NodeTypeRef {
 		t.Errorf("2nd infix operand is a ref")
@@ -145,10 +172,10 @@ func TestMultiParamFunctions(t *testing.T) {
 	if formula.root.FirstChild().ChildCount() != 3 {
 		t.Errorf("Formula root has three children")
 	}
-	if formula.root.FirstChild().children[1].nodeType != NodeTypeLiteral {
+	if formula.root.FirstChild().children[1].nodeType != NodeTypeFloat {
 		t.Errorf("True branch is a literal")
 	}
-	if formula.root.FirstChild().children[2].nodeType != NodeTypeLiteral {
+	if formula.root.FirstChild().children[2].nodeType != NodeTypeFloat {
 		t.Errorf("False branch is a literal")
 	}
 
@@ -162,8 +189,8 @@ func TestMultiParamFunctions(t *testing.T) {
 	if formula.root.FirstChild().children[1].nodeType != NodeTypeRef {
 		t.Errorf("True branch is a range")
 	}
-	if formula.root.FirstChild().children[2].nodeType != NodeTypeLiteral {
-		t.Errorf("False branch is a literal")
+	if formula.root.FirstChild().children[2].nodeType != NodeTypeFloat {
+		t.Errorf("False branch is a float literal")
 	}
 
 	formula = NewFormula(`=OR(TRUE, FALSE)`)
@@ -194,11 +221,11 @@ func TestNestedFunctions(t *testing.T) {
 	if formula.root.FirstChild().FirstChild().nodeType != NodeTypeFunc {
 		t.Errorf("Condition is a function")
 	}
-	if formula.root.FirstChild().children[1].nodeType != NodeTypeLiteral {
-		t.Errorf("True branch is a literal")
+	if formula.root.FirstChild().children[1].nodeType != NodeTypeFloat {
+		t.Errorf("True branch is a float literal")
 	}
-	if formula.root.FirstChild().children[2].nodeType != NodeTypeLiteral {
-		t.Errorf("False branch is a literal")
+	if formula.root.FirstChild().children[2].nodeType != NodeTypeFloat {
+		t.Errorf("False branch is a float literal")
 	}
 
 	condition := formula.root.FirstChild().FirstChild()
