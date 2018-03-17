@@ -45,7 +45,7 @@ func TestAdditionOf2Literal(t *testing.T) {
 	}
 }
 
-func TestAdditionOf3Literal(t *testing.T) {
+func TestAdditionOf3Literals(t *testing.T) {
 	engine := NewEngine(xlFile)
 	formula := f1Formula.NewFormula(`=1.1 + 2.2 + 10`)
 
@@ -53,5 +53,53 @@ func TestAdditionOf3Literal(t *testing.T) {
 	result = engine.EvalFormula(formula)
 	if r, ok := result.(float64); !ok || (r - 13.3) > EPSILON {
 		t.Errorf("Expected: 13.3\tActual: %v", result)
+	}
+}
+
+func TestArithOfLiterals(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 + 20 - 29`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 1) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=20 - 29 + 10`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 1) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 + 20 + 30 - 1`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 59) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 - 1 + 20 + 30`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 59) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 + 20 + 30 - 1 - 2`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 57) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 - 1 - 2 + 20 + 30`)
+	result = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r - 57) > EPSILON {
+		t.Errorf("Expected: 0\tActual: %v", result)
 	}
 }

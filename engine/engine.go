@@ -94,10 +94,10 @@ func (g *Engine) EvalFormula(f *f1F.Formula) interface{} {
 
 		if nodeType == f1F.NodeTypeFunc {
 			invoke := &Invoke{fn: currentNode.Value().(string)}
-			jump = g.runStack(invoke)
+			g.runStack(invoke)
 		} else if nodeType == f1F.NodeTypeRef {
 			invoke := &Invoke{fn: currentNode.Value().(string)}
-			jump = g.runStack(invoke)
+			g.runStack(invoke)
 		} else if nodeType == f1F.NodeTypeLiteral ||
 		 		nodeType == f1F.NodeTypeFloat ||
 				nodeType == f1F.NodeTypeInteger {
@@ -144,20 +144,27 @@ func (g *Engine) leave() {
 
 // runStack Execute an invoke and store output in ax
 // Output: ax register
-func (g *Engine) runStack(invoke *Invoke) (jump int) {
+func (g *Engine) runStack(invoke *Invoke) {
 	if invoke.fn == "+" {
 		var operand interface{}
 		var ax float64
 
-		for i := 0; i < invoke.arity; i++ {
+		for i := invoke.arity; i >= 1; i-- {
 			g.pop(&operand)
 			ax += operand.(float64)
 		}
 		g.ax = ax
-	}
+	} else if invoke.fn == "-" {
+		var operand interface{}
+		var ax float64 = 0.0
 
-	jump = 1
-	return
+		for i := invoke.arity; i >= 2; i-- {
+			g.pop(&operand)
+			ax += operand.(float64)
+		}
+		g.pop(&operand)
+		g.ax = operand.(float64) - ax
+	}
 }
 
 // run Expand an AST node and push result (ax) onto stack
@@ -169,8 +176,15 @@ func (g *Engine) callOperator(node *f1F.Node) {
 	}
 
 	for _, childNode := range node.Children() {
-		value := childNode.Value()
-		g.push(value)
+		switch childNode.NodeType() {
+		case f1F.NodeTypeFloat:
+			value := childNode.Value()
+			g.push(value)
+			break
+		case f1F.NodeTypeOperator:
+			g.callOperator(childNode)
+			break
+		}
 	}
 	g.runStack(invoke.(*Invoke)) // Leave the stack
 	g.push(g.ax)

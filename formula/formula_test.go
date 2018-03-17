@@ -71,6 +71,29 @@ func TestMultiInfixOperatorAtRoot(t *testing.T) {
 	if result := formula.root.FirstChild().ChildAt(1).Value().(float64); result != 30 {
 		t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 1\tActual: %v", result)
 	}
+
+	formula = NewFormula(`=10 + 20 + 30 - 1 - 2`)
+	if result := formula.root.FirstChild().ChildCount(); result != 3 {
+		t.Errorf("POSTFIX: ((10 20 30)+ 1 2)-. Expect: 3\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().Value().(string); result != "-" {
+		t.Errorf("POSTFIX: ((10 20 30)+ 1 2)-. Expect: -\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().ChildCount(); result != 3 {
+		t.Errorf("POSTFIX: ((10 20 30)+ 1 2)-. Expect: 3\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().FirstChild().Value().(string); result != "+" {
+		t.Errorf("POSTFIX: ((10 20 30)+ 1 2)-. Expect: 10\tActual: %v", result)
+	}
+	// if result := formula.root.FirstChild().FirstChild().ChildAt(0).Value().(float64); result != 10 {
+	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 10\tActual: %v", result)
+	// }
+	// if result := formula.root.FirstChild().FirstChild().ChildAt(1).Value().(float64); result != 20 {
+	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 20\tActual: %v", result)
+	// }
+	// if result := formula.root.FirstChild().ChildAt(1).Value().(float64); result != 30 {
+	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 1\tActual: %v", result)
+	// }
 }
 
 func TestSingleCellRef(t *testing.T) {
