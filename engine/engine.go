@@ -2,6 +2,8 @@ package engine
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	f1F "github.com/khanhhua/formula1/formula"
 
@@ -25,36 +27,52 @@ type Engine struct {
 }
 
 type Invoke struct {
-	fn 		string
+	fn    string
 	arity int
 }
 
 type Cell struct {
-	value  string
+	value   interface{}
 	formula string
 }
 
 // NewEngine Create a new g to execute formula suitable for xlFile
 func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
-		xlFile: xlFile,
+		xlFile:    xlFile,
 		callstack: stack.New(),
 	}
 }
 
-func (g *Engine) GetCell (cellIDString string) (cell Cell,err error) {
+func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 	if len(cellIDString) == 0 {
 		err = Error("Invalid address")
 		return
+	}
+	var sheet *xlsx.Sheet
+	if strings.Contains(cellIDString, "!") {
+		splat := strings.Split(cellIDString, "!")
+		sheet = g.xlFile.Sheet[splat[0]]
+		cellIDString = splat[1]
+	} else {
+		sheet = g.xlFile.Sheets[0]
 	}
 
 	if col, row, xlError := xlsx.GetCoordsFromCellIDString(cellIDString); xlError != nil {
 		err = xlError
 		return
 	} else {
-		xlCell := g.xlFile.Sheets[0].Cell(row, col)
-		cell.value = xlCell.Value
-		cell.formula = xlCell.Formula()
+		xlCell := sheet.Cell(row, col)
+		if f, err := strconv.ParseFloat(xlCell.Value, 64); err != nil {
+			cell.value = xlCell.Value
+		} else {
+			cell.value = f
+		}
+
+		if formula := xlCell.Formula(); formula != "" {
+			cell.formula = `=` + formula
+		}
+
 		return
 	}
 }
@@ -66,7 +84,7 @@ func (g *Engine) Execute(inputs map[string]string) (names []string, outputs map[
 	return
 }
 
-func (g *Engine) EvalFormula(f *f1F.Formula) interface{} {
+func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.NodeType) {
 	// The registers
 	// var ax *interface{} = &g.ax
 	// var cci *int = &g.cci
@@ -96,11 +114,10 @@ func (g *Engine) EvalFormula(f *f1F.Formula) interface{} {
 			invoke := &Invoke{fn: currentNode.Value().(string)}
 			g.runStack(invoke)
 		} else if nodeType == f1F.NodeTypeRef {
-			invoke := &Invoke{fn: currentNode.Value().(string)}
-			g.runStack(invoke)
+			g.callDeref(currentNode)
 		} else if nodeType == f1F.NodeTypeLiteral ||
-		 		nodeType == f1F.NodeTypeFloat ||
-				nodeType == f1F.NodeTypeInteger {
+			nodeType == f1F.NodeTypeFloat ||
+			nodeType == f1F.NodeTypeInteger {
 			g.ax = currentNode.Value()
 		} else if nodeType == f1F.NodeTypeOperator {
 			g.callOperator(currentNode)
@@ -111,21 +128,24 @@ func (g *Engine) EvalFormula(f *f1F.Formula) interface{} {
 	}
 
 	if g.ax == nil {
-		return "#NA"
-	} else {
-		switch g.ax.(type) {
-		case string:
-			return g.ax.(string)
-		case int32:
-			return g.ax.(int32)
-		case float32:
-			return g.ax.(float32)
-		case float64:
-			return g.ax.(float64)
-		}
+		value = "#NA"
+		valueType = 0
+		return
 	}
 
-	return "#NA"
+	value = g.ax
+
+	switch g.ax.(type) {
+	case string:
+		valueType = f1F.NodeTypeLiteral
+	case int32:
+		valueType = f1F.NodeTypeInteger
+	case float32:
+		valueType = f1F.NodeTypeFloat
+	case float64:
+		valueType = f1F.NodeTypeFloat
+	}
+	return
 }
 
 // push Push whatever onto top of the g callstack
@@ -171,12 +191,14 @@ func (g *Engine) runStack(invoke *Invoke) {
 func (g *Engine) callOperator(node *f1F.Node) {
 	var invoke interface{}
 	invoke = &Invoke{
-		fn: node.Value().(string),
+		fn:    node.Value().(string),
 		arity: node.ChildCount(),
 	}
 
 	for _, childNode := range node.Children() {
 		switch childNode.NodeType() {
+		case f1F.NodeTypeRef:
+			g.callDeref(childNode)
 		case f1F.NodeTypeFloat:
 			value := childNode.Value()
 			g.push(value)
@@ -188,4 +210,22 @@ func (g *Engine) callOperator(node *f1F.Node) {
 	}
 	g.runStack(invoke.(*Invoke)) // Leave the stack
 	g.push(g.ax)
+}
+
+func (g *Engine) callDeref(node *f1F.Node) {
+	cellIDString := node.Value().(string)
+
+	if cell, err := g.GetCell(cellIDString); err != nil {
+		fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+		return
+	} else if cell.formula != "" {
+		newEngine := NewEngine(g.xlFile)
+		formula := f1F.NewFormula(cell.formula)
+		result, _ := newEngine.EvalFormula(formula)
+		g.ax = result
+		g.push(g.ax)
+	} else if cell.value != "" {
+		g.ax = cell.value
+		g.push(g.ax)
+	}
 }
