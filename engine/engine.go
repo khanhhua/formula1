@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	f1F "github.com/khanhhua/formula1/formula"
+	funs "github.com/khanhhua/formula1/funs"
 
 	"github.com/golang-collections/collections/stack"
 	"github.com/tealeg/xlsx"
@@ -111,8 +112,7 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 		nodeType := currentNode.NodeType()
 
 		if nodeType == f1F.NodeTypeFunc {
-			invoke := &Invoke{fn: currentNode.Value().(string)}
-			g.runStack(invoke)
+			g.callOperator(currentNode)
 		} else if nodeType == f1F.NodeTypeRef {
 			g.callDeref(currentNode)
 		} else if nodeType == f1F.NodeTypeLiteral ||
@@ -184,6 +184,27 @@ func (g *Engine) runStack(invoke *Invoke) {
 		}
 		g.pop(&operand)
 		g.ax = operand.(float64) - ax
+	} else {
+		// Non primitive operators: + - * /
+		// NOTE: DO NOT REFACTOR INTO DYNAMIC METHOD CALLING WITH ARGS...
+		if invoke.arity == 1 {
+			var operand1 interface{}
+			g.pop(&operand1)
+			if output, err := funs.Call1(invoke.fn, operand1); err != nil {
+				g.ax = err
+			} else {
+				g.ax = output
+			}
+		} else if invoke.arity == 2 {
+			var operand1, operand2 interface{}
+			g.pop(&operand2)
+			g.pop(&operand1)
+			if output, err := funs.Call2(invoke.fn, operand1, operand2); err != nil {
+				g.ax = err
+			} else {
+				g.ax = output
+			}
+		}
 	}
 }
 
@@ -204,6 +225,9 @@ func (g *Engine) callOperator(node *f1F.Node) {
 			g.push(value)
 			break
 		case f1F.NodeTypeOperator:
+			g.callOperator(childNode)
+			break
+		case f1F.NodeTypeFunc:
 			g.callOperator(childNode)
 			break
 		}
