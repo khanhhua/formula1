@@ -280,11 +280,26 @@ func (g *Engine) callIf(node *f1F.Node) bool {
 	switch g.ax.(type) {
 	case error:
 		return false
-	default:
-		if g.ax == nil || g.ax == false || g.ax == 0 {
+	case bool:
+		return g.ax.(bool)
+	case int:
+		if g.ax.(int) == 0 {
 			return false
-		} else {
-			return true
 		}
+	case float64:
+		if g.ax.(float64) == 0.0 {
+			return false
+		}
+	case string:
+		if g.ax.(string) == "FALSE" {
+			return false
+		}
+	default:
+		if g.ax == nil {
+			return false
+		}
+
+		return true
 	}
+	return true
 }

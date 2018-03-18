@@ -2,6 +2,37 @@ package funs
 
 import "math"
 
+func boolean(input interface{}) bool {
+	switch input.(type) {
+	case bool:
+		return input.(bool)
+	case float64:
+		return input.(float64) > 0 || input.(float64) < 0
+	default:
+		return false
+	}
+}
+
+// OR Evaluate to a boolean
+func OR(input interface{}) bool {
+	return boolean(input)
+}
+
+// OR2 Evaluate to a boolean
+func OR2(input1 interface{}, input2 interface{}) bool {
+	return OR(input1) || OR(input2)
+}
+
+// AND Evaluate to a boolean
+func AND(input interface{}) bool {
+	return boolean(input)
+}
+
+// AND2 Evaluate to a boolean
+func AND2(input1 interface{}, input2 interface{}) bool {
+	return boolean(input1) && boolean(input2)
+}
+
 // FLOOR Floor function
 func FLOOR(input interface{}) float64 {
 	return math.Floor(input.(float64))
@@ -12,6 +43,8 @@ func FLOOR(input interface{}) float64 {
 // - Single range
 func SUM(input interface{}) float64 {
 	switch input.(type) {
+	case int:
+		return float64(input.(int))
 	case float64:
 		return input.(float64)
 	case []float64:
