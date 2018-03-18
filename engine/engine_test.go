@@ -15,7 +15,7 @@ var xlFile *xlsx.File
 func TestMain(m *testing.M) {
 	// setup
 	var err error
-	xlFile, err = xlsx.OpenFile("/Users/khanhhua/Downloads/formula1-x1.xlsx")
+	xlFile, err = xlsx.OpenFile("../testdocs/formula1-x1.xlsx")
 	if err != nil {
 		os.Exit(1)
 	}
@@ -155,5 +155,160 @@ func TestIndirectCellRef(t *testing.T) {
 	result, _ = engine.EvalFormula(formula)
 	if r, ok := result.(string); !ok || r != "Cheap" {
 		t.Errorf("Expected: Cheap\tActual: %v", result)
+	}
+}
+
+func TestFunOfLiteral(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=FLOOR(10.1)`)
+	result, _ = engine.EvalFormula(formula)
+	if (result.(float64) - 10) > EPSILON {
+		t.Errorf("Expected: 10\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(2.1)`)
+	result, _ = engine.EvalFormula(formula)
+	if (result.(float64) - 2.1) > EPSILON {
+		t.Errorf("Expected: 2.1\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(10, 20)`)
+	result, _ = engine.EvalFormula(formula)
+	if (result.(float64) - 30) > EPSILON {
+		t.Errorf("Expected: 30\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=POWER(2, 3)`)
+	result, _ = engine.EvalFormula(formula)
+	if (result.(float64) - 8) > EPSILON {
+		t.Errorf("Expected: 8\tActual: %v", result)
+	}
+}
+
+func TestSumOfRefs(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(Input!B2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-10) > EPSILON {
+		t.Errorf("Expected: 10\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(Input!B2, Input!C2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-21) > EPSILON {
+		t.Errorf("Expected: 21\tActual: %v", result)
+	}
+}
+
+func TestSimpleIf(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(TRUE(), 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(FALSE(), 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if result.(bool) != false {
+		t.Errorf("Expected: false\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(TRUE(), 2, 5)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(FALSE(), 3, 6)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-6) > EPSILON {
+		t.Errorf("Expected: 6\tActual: %v", result)
+	}
+}
+
+func TestArithIf(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(1, 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(0, 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if result.(bool) != false {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+}
+
+func TestNestedIf(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(IF(TRUE(), 0, 2), 20, 10)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-10) > EPSILON {
+		t.Errorf("Expected: 10\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(1, IF(TRUE(), 3, 20), 30)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-3) > EPSILON {
+		t.Errorf("Expected: 3\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(0, 1, IF(TRUE(), 3, 20))`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-3) > EPSILON {
+		t.Errorf("Expected: 3\tActual: %v", result)
+	}
+}
+
+func TestBooleanIf(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(OR(1, 0), TRUE())`)
+	result, _ = engine.EvalFormula(formula)
+	if result.(bool) != true {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(AND(1, 3), TRUE())`)
+	result, _ = engine.EvalFormula(formula)
+	if result.(bool) != true {
+		t.Errorf("Expected: 2\tActual: %v", result)
 	}
 }
