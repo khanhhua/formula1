@@ -149,7 +149,6 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand)
 			ax += operand.(float64)
 		}
-		// g.ax = ax
 		ret = ax
 	} else if invoke.fn == "-" {
 		var operand interface{}
@@ -160,7 +159,6 @@ func (g *Engine) runStack(invoke *Invoke) {
 			ax += operand.(float64)
 		}
 		g.pop(&operand)
-		// g.ax = operand.(float64) - ax
 		ret = operand.(float64) - ax
 	} else {
 		// Non primitive operators: + - * /
@@ -169,10 +167,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 			var operand1 interface{}
 			g.pop(&operand1)
 			if output, err := funs.Call1(invoke.fn, operand1); err != nil {
-				// g.ax = err
 				ret = err
 			} else {
-				// g.ax = output
 				ret = output
 			}
 		} else if invoke.arity == 2 {
@@ -180,10 +176,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand2)
 			g.pop(&operand1)
 			if output, err := funs.Call2(invoke.fn, operand1, operand2); err != nil {
-				// g.ax = err
 				ret = err
 			} else {
-				// g.ax = output
 				ret = output
 			}
 		}
@@ -198,7 +192,13 @@ func (g *Engine) evalNode(node *f1F.Node) {
 		g.callFunc(node)
 		break
 	case f1F.NodeTypeFunc:
-		g.callFunc(node)
+		if node.Value() == "TRUE" {
+			g.ax = true
+		} else if node.Value() == "FALSE" {
+			g.ax = false
+		} else {
+			g.callFunc(node)
+		}
 		break
 	case f1F.NodeTypeRef:
 		g.callDeref(node)
@@ -209,7 +209,7 @@ func (g *Engine) evalNode(node *f1F.Node) {
 	}
 }
 
-// run Expand an AST node and push result (ax) onto stack
+// run Expand an AST node and pop result from stack to ax
 func (g *Engine) callFunc(node *f1F.Node) {
 	var fn string
 	fn = node.Value().(string)
@@ -221,8 +221,9 @@ func (g *Engine) callFunc(node *f1F.Node) {
 			g.evalNode(falseBranch)
 		} else {
 			g.ax = false
-			g.push(g.ax)
 		}
+
+		return
 	}
 
 	var invoke interface{}
@@ -265,17 +266,25 @@ func (g *Engine) callDeref(node *f1F.Node) {
 		formula := f1F.NewFormula(cell.formula)
 		result, _ := newEngine.EvalFormula(formula)
 		g.ax = result
-		// g.push(g.ax)
 	} else if cell.value != "" {
 		g.ax = cell.value
-		// g.push(g.ax)
 	}
 }
 
+// callIf Evaluate a node to a bool in MS-EXCEL
+// - False: nil, false, 0, error
+// - True: anything else
 func (g *Engine) callIf(node *f1F.Node) bool {
 	g.evalNode(node)
-	if g.ax == nil || g.ax == false {
+
+	switch g.ax.(type) {
+	case error:
 		return false
+	default:
+		if g.ax == nil || g.ax == false || g.ax == 0 {
+			return false
+		} else {
+			return true
+		}
 	}
-	return true
 }

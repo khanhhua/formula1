@@ -211,3 +211,37 @@ func TestSumOfRefs(t *testing.T) {
 		t.Errorf("Expected: 21\tActual: %v", result)
 	}
 }
+
+func TestSimpleIf(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(TRUE(), 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(FALSE(), 2)`)
+	result, _ = engine.EvalFormula(formula)
+	if result.(bool) != false {
+		t.Errorf("Expected: false\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(TRUE(), 2, 5)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=IF(FALSE(), 3, 6)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-6) > EPSILON {
+		t.Errorf("Expected: 6\tActual: %v", result)
+	}
+}
