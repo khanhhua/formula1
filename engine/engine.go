@@ -27,24 +27,24 @@ type Engine struct {
 }
 
 type Invoke struct {
-	fn 		string
+	fn    string
 	arity int
 }
 
 type Cell struct {
-	value  interface{}
+	value   interface{}
 	formula string
 }
 
 // NewEngine Create a new g to execute formula suitable for xlFile
 func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
-		xlFile: xlFile,
+		xlFile:    xlFile,
 		callstack: stack.New(),
 	}
 }
 
-func (g *Engine) GetCell (cellIDString string) (cell Cell,err error) {
+func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 	if len(cellIDString) == 0 {
 		err = Error("Invalid address")
 		return
@@ -69,7 +69,10 @@ func (g *Engine) GetCell (cellIDString string) (cell Cell,err error) {
 			cell.value = f
 		}
 
-		cell.formula = xlCell.Formula()
+		if formula := xlCell.Formula(); formula != "" {
+			cell.formula = `=` + formula
+		}
+
 		return
 	}
 }
@@ -113,8 +116,8 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 		} else if nodeType == f1F.NodeTypeRef {
 			g.callDeref(currentNode)
 		} else if nodeType == f1F.NodeTypeLiteral ||
-		 		nodeType == f1F.NodeTypeFloat ||
-				nodeType == f1F.NodeTypeInteger {
+			nodeType == f1F.NodeTypeFloat ||
+			nodeType == f1F.NodeTypeInteger {
 			g.ax = currentNode.Value()
 		} else if nodeType == f1F.NodeTypeOperator {
 			g.callOperator(currentNode)
@@ -188,7 +191,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 func (g *Engine) callOperator(node *f1F.Node) {
 	var invoke interface{}
 	invoke = &Invoke{
-		fn: node.Value().(string),
+		fn:    node.Value().(string),
 		arity: node.ChildCount(),
 	}
 
@@ -219,7 +222,8 @@ func (g *Engine) callDeref(node *f1F.Node) {
 		newEngine := NewEngine(g.xlFile)
 		formula := f1F.NewFormula(cell.formula)
 		result, _ := newEngine.EvalFormula(formula)
-		g.push(result)
+		g.ax = result
+		g.push(g.ax)
 	} else if cell.value != "" {
 		g.ax = cell.value
 		g.push(g.ax)
