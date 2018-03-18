@@ -46,7 +46,7 @@ func NewEngine(xlFile *xlsx.File) *Engine {
 	}
 }
 
-func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
+func (g *Engine) GetRange(cellIDString string) (cells []*Cell, err error) {
 	if len(cellIDString) == 0 {
 		err = Error("Invalid address")
 		return
@@ -60,10 +60,18 @@ func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 		sheet = g.xlFile.Sheets[0]
 	}
 
+	if strings.Contains(cellIDString, ":") {
+		splat := strings.Split(cellIDString, ":")
+		fromIDString := splat[0]
+		toIDString := splat[1]
+
+	}
+
 	if col, row, xlError := xlsx.GetCoordsFromCellIDString(cellIDString); xlError != nil {
 		err = xlError
 		return
 	} else {
+		cells := make([]Cell, 1)
 		xlCell := sheet.Cell(row, col)
 		if f, err := strconv.ParseFloat(xlCell.Value, 64); err != nil {
 			cell.value = xlCell.Value
@@ -258,7 +266,7 @@ func (g *Engine) callFunc(node *f1F.Node) {
 func (g *Engine) callDeref(node *f1F.Node) {
 	cellIDString := node.Value().(string)
 
-	if cell, err := g.GetCell(cellIDString); err != nil {
+	if cell, err := g.GetRange(cellIDString); err != nil {
 		fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
 		return
 	} else if cell.formula != "" {
