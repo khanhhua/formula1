@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -93,19 +94,11 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	fmt.Printf("Evaluating formula...\n")
 	fmt.Printf("- Entry: %v\n", currentNode.Value())
 
-	switch currentNode.NodeType() {
-	case f1F.NodeTypeOperator:
-		g.callFunc(currentNode)
-		break
-	case f1F.NodeTypeFunc:
-		g.callFunc(currentNode)
-		break
-	case f1F.NodeTypeRef:
-		g.callDeref(currentNode)
-		break
-	case f1F.NodeTypeLiteral, f1F.NodeTypeFloat, f1F.NodeTypeInteger:
-		g.ax = currentNode.Value()
-		break
+	stackHeight := g.callstack.Len()
+	g.evalNode(currentNode)
+	if g.callstack.Len() != stackHeight {
+		panic(errors.New(fmt.Sprintf("Stack not disposed properly: was %d, now %d",
+			stackHeight, g.callstack.Len())))
 	}
 
 	if g.ax == nil {
@@ -146,6 +139,8 @@ func (g *Engine) leave() {
 // runStack Execute an invoke and store output in ax
 // Output: ax register
 func (g *Engine) runStack(invoke *Invoke) {
+	var ret interface{}
+
 	if invoke.fn == "+" {
 		var operand interface{}
 		var ax float64
@@ -154,7 +149,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand)
 			ax += operand.(float64)
 		}
-		g.ax = ax
+		// g.ax = ax
+		ret = ax
 	} else if invoke.fn == "-" {
 		var operand interface{}
 		var ax float64 = 0.0
@@ -164,7 +160,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 			ax += operand.(float64)
 		}
 		g.pop(&operand)
-		g.ax = operand.(float64) - ax
+		// g.ax = operand.(float64) - ax
+		ret = operand.(float64) - ax
 	} else {
 		// Non primitive operators: + - * /
 		// NOTE: DO NOT REFACTOR INTO DYNAMIC METHOD CALLING WITH ARGS...
@@ -172,28 +169,65 @@ func (g *Engine) runStack(invoke *Invoke) {
 			var operand1 interface{}
 			g.pop(&operand1)
 			if output, err := funs.Call1(invoke.fn, operand1); err != nil {
-				g.ax = err
+				// g.ax = err
+				ret = err
 			} else {
-				g.ax = output
+				// g.ax = output
+				ret = output
 			}
 		} else if invoke.arity == 2 {
 			var operand1, operand2 interface{}
 			g.pop(&operand2)
 			g.pop(&operand1)
 			if output, err := funs.Call2(invoke.fn, operand1, operand2); err != nil {
-				g.ax = err
+				// g.ax = err
+				ret = err
 			} else {
-				g.ax = output
+				// g.ax = output
+				ret = output
 			}
 		}
+	}
+	// NOTE: Remember to g.pop after g.runStack
+	g.push(ret)
+}
+
+func (g *Engine) evalNode(node *f1F.Node) {
+	switch node.NodeType() {
+	case f1F.NodeTypeOperator:
+		g.callFunc(node)
+		break
+	case f1F.NodeTypeFunc:
+		g.callFunc(node)
+		break
+	case f1F.NodeTypeRef:
+		g.callDeref(node)
+		break
+	case f1F.NodeTypeLiteral, f1F.NodeTypeFloat, f1F.NodeTypeInteger:
+		g.ax = node.Value()
+		break
 	}
 }
 
 // run Expand an AST node and push result (ax) onto stack
 func (g *Engine) callFunc(node *f1F.Node) {
+	var fn string
+	fn = node.Value().(string)
+
+	if fn == "IF" { // The IF-JUMP
+		if g.callIf(node.FirstChild()) {
+			g.evalNode(node.ChildAt(1))
+		} else if falseBranch := node.ChildAt(2); falseBranch != nil {
+			g.evalNode(falseBranch)
+		} else {
+			g.ax = false
+			g.push(g.ax)
+		}
+	}
+
 	var invoke interface{}
 	invoke = &Invoke{
-		fn:    node.Value().(string),
+		fn:    fn,
 		arity: node.ChildCount(),
 	}
 
@@ -201,20 +235,23 @@ func (g *Engine) callFunc(node *f1F.Node) {
 		switch childNode.NodeType() {
 		case f1F.NodeTypeRef:
 			g.callDeref(childNode)
+			g.push(g.ax)
 		case f1F.NodeTypeFloat:
 			value := childNode.Value()
 			g.push(value)
 			break
 		case f1F.NodeTypeOperator:
 			g.callFunc(childNode)
+			g.push(g.ax)
 			break
 		case f1F.NodeTypeFunc:
 			g.callFunc(childNode)
+			g.push(g.ax)
 			break
 		}
 	}
-	g.runStack(invoke.(*Invoke)) // Leave the stack
-	g.push(g.ax)
+	g.runStack(invoke.(*Invoke))
+	g.pop(&g.ax) // Leave the stack
 }
 
 func (g *Engine) callDeref(node *f1F.Node) {
@@ -228,9 +265,17 @@ func (g *Engine) callDeref(node *f1F.Node) {
 		formula := f1F.NewFormula(cell.formula)
 		result, _ := newEngine.EvalFormula(formula)
 		g.ax = result
-		g.push(g.ax)
+		// g.push(g.ax)
 	} else if cell.value != "" {
 		g.ax = cell.value
-		g.push(g.ax)
+		// g.push(g.ax)
 	}
+}
+
+func (g *Engine) callIf(node *f1F.Node) bool {
+	g.evalNode(node)
+	if g.ax == nil || g.ax == false {
+		return false
+	}
+	return true
 }
