@@ -85,46 +85,27 @@ func (g *Engine) Execute(inputs map[string]string) (names []string, outputs map[
 	return
 }
 
+// EvalFormula Execute formula by running AST nodes as necessary
 func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.NodeType) {
-	// The registers
-	// var ax *interface{} = &g.ax
-	// var cci *int = &g.cci
-	// var maxCCI *int = &g.maxCCI
 	var currentNode *f1F.Node
-	var jump int
 
 	currentNode = f.GetEntryNode()
-	codes := []*f1F.Node{currentNode}
-	if currentNode.NodeType() == f1F.NodeTypeFunc {
-		if currentNode.Value().(string) == "IF" && currentNode.HasChildren() {
-			codes = append(codes, currentNode.Children()...)
-		}
-	}
-	g.maxCCI = len(codes) - 1
 	fmt.Printf("Evaluating formula...\n")
 	fmt.Printf("- Entry: %v\n", currentNode.Value())
-	fmt.Printf("- MaxCCI: %d\n", g.maxCCI)
 
-	// The mighty loop :D... LOOP LOOP LOOP until cci reaches maxCCI
-	for g.cci <= g.maxCCI {
-		// Phase 1 load node onto execution frame
-		currentNode = codes[g.cci]
-		nodeType := currentNode.NodeType()
-
-		if nodeType == f1F.NodeTypeFunc {
-			g.callOperator(currentNode)
-		} else if nodeType == f1F.NodeTypeRef {
-			g.callDeref(currentNode)
-		} else if nodeType == f1F.NodeTypeLiteral ||
-			nodeType == f1F.NodeTypeFloat ||
-			nodeType == f1F.NodeTypeInteger {
-			g.ax = currentNode.Value()
-		} else if nodeType == f1F.NodeTypeOperator {
-			g.callOperator(currentNode)
-		}
-
-		jump = 1
-		g.cci += jump
+	switch currentNode.NodeType() {
+	case f1F.NodeTypeOperator:
+		g.callFunc(currentNode)
+		break
+	case f1F.NodeTypeFunc:
+		g.callFunc(currentNode)
+		break
+	case f1F.NodeTypeRef:
+		g.callDeref(currentNode)
+		break
+	case f1F.NodeTypeLiteral, f1F.NodeTypeFloat, f1F.NodeTypeInteger:
+		g.ax = currentNode.Value()
+		break
 	}
 
 	if g.ax == nil {
@@ -209,7 +190,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 }
 
 // run Expand an AST node and push result (ax) onto stack
-func (g *Engine) callOperator(node *f1F.Node) {
+func (g *Engine) callFunc(node *f1F.Node) {
 	var invoke interface{}
 	invoke = &Invoke{
 		fn:    node.Value().(string),
@@ -225,10 +206,10 @@ func (g *Engine) callOperator(node *f1F.Node) {
 			g.push(value)
 			break
 		case f1F.NodeTypeOperator:
-			g.callOperator(childNode)
+			g.callFunc(childNode)
 			break
 		case f1F.NodeTypeFunc:
-			g.callOperator(childNode)
+			g.callFunc(childNode)
 			break
 		}
 	}
