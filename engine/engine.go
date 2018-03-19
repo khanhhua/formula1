@@ -38,12 +38,115 @@ type Cell struct {
 	formula string
 }
 
+type Range struct {
+	cells []Cell
+	// width Number of columns
+	colCount int
+	// height Number of rows
+	rowCount int
+}
+
+// ToSlice Get a copy of the 1D Range
+func (cellRange *Range) ToSlice() (cells []Cell, ok bool) {
+	if cellRange.colCount == 1 && cellRange.rowCount > 1 {
+		cells = cellRange.cells[:]
+		ok = true
+		return
+	} else if cellRange.colCount > 1 && cellRange.rowCount == 1 {
+		cells = cellRange.cells[:]
+		ok = true
+		return
+	}
+
+	ok = false
+	return
+}
+
+func (cellRange *Range) To2DSlice() (cells [][]Cell, ok bool) {
+	cells = make([][]Cell, cellRange.rowCount)
+	colCount := cellRange.colCount
+
+	for i := range cells {
+		cells[i] = make([]Cell, colCount)
+
+		for j := range cells[i] {
+			cells[i][j] = cellRange.cells[i*colCount+j]
+		}
+	}
+	ok = true
+	return
+}
+
 // NewEngine Create a new g to execute formula suitable for xlFile
 func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
 		xlFile:    xlFile,
 		callstack: stack.New(),
 	}
+}
+
+func (g *Engine) GetRange(rangeIDString string) (cellRange Range, err error) {
+	if len(rangeIDString) == 0 {
+		err = errors.New("Invalid address")
+		return
+	}
+
+	var sheet *xlsx.Sheet
+	var fromIDString, toIDString string
+
+	if strings.Contains(rangeIDString, "!") {
+		splat := strings.Split(rangeIDString, "!")
+		sheet = g.xlFile.Sheet[splat[0]]
+		rangeIDString = splat[1]
+	} else {
+		sheet = g.xlFile.Sheets[0]
+	}
+
+	var colFrom, rowFrom, colTo, rowTo int
+	var xlError error
+	if strings.Contains(rangeIDString, ":") {
+		splat := strings.Split(rangeIDString, ":")
+		fromIDString = splat[0]
+		toIDString = splat[1]
+	} else {
+		fromIDString = rangeIDString
+		toIDString = rangeIDString
+	}
+
+	if colFrom, rowFrom, xlError = xlsx.GetCoordsFromCellIDString(fromIDString); xlError != nil {
+		err = xlError
+		return
+	}
+	if colTo, rowTo, xlError = xlsx.GetCoordsFromCellIDString(toIDString); xlError != nil {
+		err = xlError
+		return
+	}
+
+	rowCount := rowTo - rowFrom + 1
+	colCount := colTo - colFrom + 1
+	cellRange = Range{
+		cells:    make([]Cell, rowCount*colCount),
+		rowCount: rowCount,
+		colCount: colCount,
+	}
+	for i := 0; i < rowCount; i++ {
+		for j := 0; j < colCount; j++ {
+			xlCell := sheet.Cell(rowFrom+i, colFrom+j)
+			cell := Cell{}
+			if f, err := strconv.ParseFloat(xlCell.Value, 64); err != nil {
+				cell.value = xlCell.Value
+			} else {
+				cell.value = f
+			}
+
+			if formula := xlCell.Formula(); formula != "" {
+				cell.formula = `=` + formula
+			}
+			cellRange.cells[i*colCount+j] = cell
+		}
+	}
+
+	return
 }
 
 func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
@@ -258,16 +361,54 @@ func (g *Engine) callFunc(node *f1F.Node) {
 func (g *Engine) callDeref(node *f1F.Node) {
 	cellIDString := node.Value().(string)
 
-	if cell, err := g.GetCell(cellIDString); err != nil {
-		fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
-		return
-	} else if cell.formula != "" {
-		newEngine := NewEngine(g.xlFile)
-		formula := f1F.NewFormula(cell.formula)
-		result, _ := newEngine.EvalFormula(formula)
-		g.ax = result
-	} else if cell.value != "" {
-		g.ax = cell.value
+	if strings.Contains(cellIDString, ":") {
+		// Request for a range, even for single dimension ranges
+		if cellRange, err := g.GetRange(cellIDString); err != nil {
+			fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+			return
+		} else {
+			if cells, ok := cellRange.ToSlice(); ok {
+				result := make([]interface{}, len(cells))
+				for i := range result {
+					if formulaString := cells[i].formula; formulaString != "" {
+						formula := f1F.NewFormula(formulaString)
+						g.EvalFormula(formula) // g.ax is updated
+						result[i] = g.ax
+					} else {
+						result[i] = cells[i].value
+					}
+				}
+				g.ax = result
+			} else if cells, ok := cellRange.To2DSlice(); ok {
+				result := make([][]interface{}, cellRange.rowCount)
+				colCount := cellRange.colCount
+				for i := 0; i < cellRange.rowCount; i++ {
+					result[i] = make([]interface{}, colCount)
+					for j := 0; j < cellRange.colCount; j++ {
+						if formulaString := cells[i][j].formula; formulaString != "" {
+							formula := f1F.NewFormula(formulaString)
+							g.EvalFormula(formula) // g.ax is updated
+							result[i][j] = g.ax
+						} else {
+							result[i][j] = cells[i][j].value
+						}
+
+					}
+				}
+				g.ax = result
+			}
+		}
+
+	} else {
+		if cell, err := g.GetCell(cellIDString); err != nil {
+			fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+			return
+		} else if cell.formula != "" {
+			formula := f1F.NewFormula(cell.formula)
+			g.EvalFormula(formula) // g.ax is updated
+		} else if cell.value != "" {
+			g.ax = cell.value
+		}
 	}
 }
 

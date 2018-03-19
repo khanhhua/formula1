@@ -61,6 +61,26 @@ func SUM(input interface{}) float64 {
 			}
 		}
 		return sum
+	case []interface{}:
+		sum := 0.0
+		for _, item := range input.([]interface{}) {
+			sum += item.(float64)
+		}
+		return sum
+	case [][]interface{}:
+		sum := 0.0
+		var outer [][]interface{}
+		var inner []interface{}
+
+		outer = input.([][]interface{})
+		for i := 0; i < len(outer); i++ {
+			inner = outer[i]
+			for j := 0; j < len(inner); j++ {
+				sum += inner[j].(float64)
+			}
+		}
+
+		return sum
 	default:
 		return 0.0
 	}

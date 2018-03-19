@@ -24,6 +24,76 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestRangeToSlice(t *testing.T) {
+	var cellRange Range
+	var slice []Cell
+	var ok bool
+
+	cellRange = Range{
+		rowCount: 2,
+		colCount: 1,
+	}
+	cellRange.cells = make([]Cell, 2)
+
+	slice, ok = cellRange.ToSlice()
+	if ok != true {
+		t.Errorf("Unexpected error")
+	}
+	if result := len(slice); result != 2 {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	cellRange = Range{
+		rowCount: 1,
+		colCount: 2,
+	}
+	cellRange.cells = make([]Cell, 2)
+
+	slice, ok = cellRange.ToSlice()
+	if ok != true {
+		t.Errorf("Unexpected error")
+	}
+	if result := len(slice); result != 2 {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+
+	cellRange = Range{
+		rowCount: 2,
+		colCount: 2,
+	}
+	cellRange.cells = make([]Cell, 4)
+
+	slice, ok = cellRange.ToSlice()
+	if ok == true {
+		t.Errorf("Expected error")
+	}
+}
+
+func TestRangeTo2DSlice(t *testing.T) {
+	var cellRange Range
+	var slice [][]Cell
+
+	cellRange = Range{
+		rowCount: 2,
+		colCount: 2,
+	}
+	cellRange.cells = make([]Cell, 4)
+
+	slice, ok := cellRange.To2DSlice()
+	if ok != true {
+		t.Errorf("Unexpected error")
+	}
+	if result := len(slice); result != cellRange.rowCount {
+		t.Errorf("Expected: %d\tActual: %v", cellRange.rowCount, result)
+	}
+	if result := len(slice[0]); result != cellRange.colCount {
+		t.Errorf("Expected: %d\tActual: %v", cellRange.colCount, result)
+	}
+	if result := len(slice[1]); result != 2 {
+		t.Errorf("Expected: %d\tActual: %v", cellRange.colCount, cellRange.colCount)
+	}
+}
+
 func TestNumberLiteral(t *testing.T) {
 	engine := NewEngine(xlFile)
 	formula := f1Formula.NewFormula(`=10.1`)
@@ -209,6 +279,20 @@ func TestSumOfRefs(t *testing.T) {
 	result, _ = engine.EvalFormula(formula)
 	if math.Abs(result.(float64)-21) > EPSILON {
 		t.Errorf("Expected: 21\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(Input!B2:D2)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-34) > EPSILON {
+		t.Errorf("Expected: 34\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=SUM(Discounts!A2:B6)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-31.9) > EPSILON {
+		t.Errorf("Expected: 31.9\tActual: %v", result)
 	}
 }
 
