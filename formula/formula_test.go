@@ -96,12 +96,44 @@ func TestMultiInfixOperatorAtRoot(t *testing.T) {
 	// }
 }
 
+func TestSingleParentheses(t *testing.T) {
+	var formula *Formula
+
+	formula = NewFormula(`=2 * (5 - 1)`)
+
+	if result := formula.root.ChildCount(); result != 1 {
+		t.Errorf("POSTFIX: (2 (5 1)-)*. Expect: 1\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().ChildCount(); result != 2 {
+		t.Errorf("POSTFIX: (2 (5 1)-)*. Expect: 2\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().Value().(string); result != "*" {
+		t.Errorf("POSTFIX: (2 (5 1)-)*. Expect: 2\tActual: %v", result)
+	}
+
+	formula = NewFormula(`=(5 - 1) * 2`)
+
+	if result := formula.root.ChildCount(); result != 1 {
+		t.Errorf("POSTFIX: ((5 1)- 2)*. Expect: 1\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().ChildCount(); result != 2 {
+		t.Errorf("POSTFIX: ((5 1)- 2)*. Expect: 2\tActual: %v", result)
+	}
+	if result := formula.root.FirstChild().Value().(string); result != "*" {
+		t.Errorf("POSTFIX: ((5 1)- 2)*. Expect: 2\tActual: %v", result)
+	}
+}
+
 func TestSingleCellRef(t *testing.T) {
 	formulaText := `=A1`
 
 	formula := NewFormula(formulaText)
 	if formula.root.value != "root" {
 		t.Errorf("Formula root's value must be 'root'")
+	}
+
+	if result := formula.root.FirstChild().NodeType(); result != NodeTypeRef {
+		t.Errorf("Expect: NodeTypeRef\tActual: %v", result)
 	}
 }
 

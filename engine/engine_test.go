@@ -173,6 +173,20 @@ func TestArithOfLiterals(t *testing.T) {
 	if r, ok := result.(float64); !ok || (r-57) > EPSILON {
 		t.Errorf("Expected: 0\tActual: %v", result)
 	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=2 * (5 - 1)`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || math.Abs(r-8) > EPSILON {
+		t.Errorf("Expected: 8\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=(5 - 1) * 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || math.Abs(r-8) > EPSILON {
+		t.Errorf("Expected: 8\tActual: %v", result)
+	}
 }
 
 func TestSimpleCellRef(t *testing.T) {

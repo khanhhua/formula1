@@ -67,7 +67,28 @@ func NewFormula(text string) *Formula {
 
 	var token *efp.Token
 
-	for index < count {
+	for index <= count {
+		if index >= count {
+			if current.infixChild != nil {
+				if current.children == nil {
+					current.children = []*Node{current.infixChild}
+				} else {
+					current.children = append(current.children, current.infixChild)
+				}
+				current.resetInfixChild()
+			}
+
+			if root.infixChild != nil {
+				if root.children == nil {
+					root.children = []*Node{root.infixChild}
+				} else {
+					root.children = append(root.children, root.infixChild)
+					root.resetInfixChild()
+				}
+			}
+			break
+		}
+
 		token = &tokens[index]
 		tvalue := token.TValue
 		ttype := token.TType
@@ -75,72 +96,53 @@ func NewFormula(text string) *Formula {
 		var value interface{}
 		var nodeType NodeType
 
-		if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
-			current = current.makeNode(NodeTypeFunc, tvalue) // aka.PUSH the stack
-		} else if ttype == efp.TokenTypeOperand {
-			if index+1 >= count {
-				if current.nodeType == NodeTypeRoot && current.infixChild != nil {
-					current.children = append(current.children, current.infixChild)
-					current.resetInfixChild()
-				} else if current.nodeType == NodeTypeRoot {
-					value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
-					current.makeNode(nodeType, value)
-				}
-				break
-			} else if current.infixChild != nil {
-				if tokens[index+1].TType == efp.TokenTypeArgument {
-					current.children = append(current.children, current.infixChild)
-					current.resetInfixChild()
-
-					index++
-					continue
-				} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
-					current.children = append(current.children, current.infixChild)
-					current.resetInfixChild()
-
-					index++
-					continue
-				}
+		if tsubtype == efp.TokenSubTypeStart {
+			value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+			if current.infixChild != nil {
+				current = current.infixChild.makeNode(nodeType, value)
+			} else {
+				current = current.makeNode(nodeType, value)
 			}
 
-			if tokens[index+1].TType == efp.TokenTypeOperatorInfix { // Look ahead
-				var node *Node
-				if index+2 < count && tokens[index+2].TType == efp.TokenTypeOperand {
-					if current.infixChild == nil {
-						node = current.makeInfixChild(tokens[index+1].TValue) // Infix-Operators: = + - * /
-						value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
-						node.makeNode(nodeType, value)
+			index++
+			continue
+		} else if tsubtype == efp.TokenSubTypeStop {
+			if current.infixChild != nil {
+				current.children = append(current.children, current.infixChild)
+				current.resetInfixChild()
+			}
 
-						value, nodeType = resolveNodeType(tokens[index+2].TType,
-							tokens[index+2].TSubType, tokens[index+2].TValue)
-						node.makeNode(nodeType, value)
-					} else if tokens[index+1].TType == efp.TokenTypeFunction && tokens[index+1].TSubType == efp.TokenSubTypeStop {
-						if current.infixChild != nil {
-							current.children = append(current.children, current.infixChild)
-							current.resetInfixChild()
-						}
-					} else {
-						node = current.makeInfixChild(tokens[index+1].TValue)
-						value, nodeType = resolveNodeType(tokens[index+2].TType,
-							tokens[index+2].TSubType, tokens[index+2].TValue)
-						node.makeNode(nodeType, value)
-					}
+			current = current.parent
 
-					index += 2
-					continue
-				} else {
-					value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
-					current.makeNode(nodeType, value)
-				}
+			index++
+			continue
+		} else if ttype == efp.TokenTypeArgument {
+			if current.infixChild != nil {
+				current.children = append(current.children, current.infixChild)
+				current.resetInfixChild()
+			}
+			index++
+			continue
+		} else if ttype == efp.TokenTypeOperatorInfix {
+			current.makeInfixChild(tvalue)
+
+			index++
+			continue
+		} else if ttype == efp.TokenTypeOperand {
+			value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
+			if current.infixChild != nil {
+				current.infixChild.makeNode(nodeType, value)
 			} else {
-				value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
 				current.makeNode(nodeType, value)
 			}
-		} else if tsubtype == efp.TokenSubTypeStop {
-			current = current.parent // aka.POP the stack
-		}
 
-		index++
+			index++
+			continue
+		} else {
+			index++
+
+			continue
+		}
 	}
 
 	formula := Formula{
@@ -177,15 +179,20 @@ func (parent *Node) makeInfixChild(value string) *Node {
 			parent:   parent,
 			children: []*Node{},
 		}
+		if len(parent.children) > 0 {
+			lastChild := parent.LastChild()
+			parent.children = parent.children[0 : parent.ChildCount()-1]
+			parent.infixChild.children = []*Node{lastChild}
+		}
 	} else if parent.infixChild.value != value {
 		// Infix precedence resolution
 		if PRECEDENCE[value] > PRECEDENCE[parent.infixChild.value.(string)] {
 			// Detach the last child and append it to the new node's children
 			temp := parent.infixChild
 			node := &Node{
-				value: value,
+				value:    value,
 				nodeType: NodeTypeOperator,
-				parent: parent,
+				parent:   parent,
 				children: []*Node{
 					temp,
 					temp.children[temp.ChildCount()-1],
@@ -199,9 +206,9 @@ func (parent *Node) makeInfixChild(value string) *Node {
 			// Simply wrap the existing infixChild inside the new one
 			temp := parent.infixChild
 			node := &Node{
-				value: value,
+				value:    value,
 				nodeType: NodeTypeOperator,
-				parent: parent,
+				parent:   parent,
 				children: []*Node{
 					temp,
 				},
@@ -222,6 +229,10 @@ func resolveNodeType(ttype string, tsubtype string, tvalue string) (value interf
 	if ttype == efp.TokenTypeFunction && tsubtype == efp.TokenSubTypeStart {
 		nodeType = NodeTypeFunc
 		value = tvalue
+		return
+	} else if ttype == efp.TokenTypeSubexpression && tsubtype == efp.TokenSubTypeStart {
+		nodeType = NodeTypeFunc
+		value = "IDENTITY"
 		return
 	} else if ttype == efp.TokenTypeOperand && tsubtype == efp.TokenSubTypeRange {
 		nodeType = NodeTypeRef

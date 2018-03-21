@@ -243,8 +243,11 @@ func (g *Engine) leave() {
 // Output: ax register
 func (g *Engine) runStack(invoke *Invoke) {
 	var ret interface{}
-
-	if invoke.fn == "+" {
+	if invoke.fn == "IDENTITY" {
+		var operand interface{}
+		g.pop(&operand)
+		ret = operand
+	} else if invoke.fn == "+" {
 		var operand interface{}
 		var ax float64
 
@@ -263,6 +266,15 @@ func (g *Engine) runStack(invoke *Invoke) {
 		}
 		g.pop(&operand)
 		ret = operand.(float64) - ax
+	} else if invoke.fn == "*" {
+		var operand interface{}
+		var ax float64 = 1.0
+
+		for i := invoke.arity; i >= 1; i-- {
+			g.pop(&operand)
+			ax *= operand.(float64)
+		}
+		ret = ax
 	} else {
 		// Non primitive operators: + - * /
 		// NOTE: DO NOT REFACTOR INTO DYNAMIC METHOD CALLING WITH ARGS...
