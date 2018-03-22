@@ -275,6 +275,46 @@ func (g *Engine) runStack(invoke *Invoke) {
 			ax *= operand.(float64)
 		}
 		ret = ax
+	} else if invoke.fn == "/" {
+		var operand interface{}
+		var ax float64 = 1
+
+		for i := invoke.arity; i >= 2; i-- {
+			g.pop(&operand)
+			ax *= operand.(float64)
+		}
+		g.pop(&operand)
+		ret = operand.(float64) / ax
+	} else if invoke.fn == ">" {
+		var operand1, operand2 interface{}
+
+		g.pop(&operand2)
+		g.pop(&operand1)
+		ret = operand1.(float64) > operand2.(float64)
+	} else if invoke.fn == "<" {
+		var operand1, operand2 interface{}
+
+		g.pop(&operand2)
+		g.pop(&operand1)
+		ret = operand1.(float64) < operand2.(float64)
+	} else if invoke.fn == "=" {
+		var operand1, operand2 interface{}
+
+		g.pop(&operand2)
+		g.pop(&operand1)
+		ret = operand1.(float64) == operand2.(float64)
+	} else if invoke.fn == ">=" {
+		var operand1, operand2 interface{}
+
+		g.pop(&operand2)
+		g.pop(&operand1)
+		ret = operand1.(float64) >= operand2.(float64)
+	} else if invoke.fn == "<=" {
+		var operand1, operand2 interface{}
+
+		g.pop(&operand2)
+		g.pop(&operand1)
+		ret = operand1.(float64) <= operand2.(float64)
 	} else {
 		// Non primitive operators: + - * /
 		// NOTE: DO NOT REFACTOR INTO DYNAMIC METHOD CALLING WITH ARGS...

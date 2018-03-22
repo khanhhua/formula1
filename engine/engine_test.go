@@ -105,14 +105,30 @@ func TestNumberLiteral(t *testing.T) {
 	}
 }
 
-func TestAdditionOf2Literal(t *testing.T) {
-	engine := NewEngine(xlFile)
-	formula := f1Formula.NewFormula(`=1.1 + 2.2`)
-
+func TestInfixOperationsOf2Literal(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
 	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=1.1 + 2.2`)
 	result, _ = engine.EvalFormula(formula)
 	if r, ok := result.(float64); !ok || (r-3.3) > EPSILON {
 		t.Errorf("Expected: 3.3\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 * 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r-20) > EPSILON {
+		t.Errorf("Expected: 20\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 / 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r-5) > EPSILON {
+		t.Errorf("Expected: 5\tActual: %v", result)
 	}
 }
 
@@ -144,6 +160,20 @@ func TestArithOfLiterals(t *testing.T) {
 	result, _ = engine.EvalFormula(formula)
 	if r, ok := result.(float64); !ok || (r-1) > EPSILON {
 		t.Errorf("Expected: 0\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 + 3 * 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r-16) > EPSILON {
+		t.Errorf("Expected: 16\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=10 + 3 / 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || (r-11.5) > EPSILON {
+		t.Errorf("Expected: 11.5\tActual: %v", result)
 	}
 
 	engine = NewEngine(xlFile)
@@ -186,6 +216,61 @@ func TestArithOfLiterals(t *testing.T) {
 	result, _ = engine.EvalFormula(formula)
 	if r, ok := result.(float64); !ok || math.Abs(r-8) > EPSILON {
 		t.Errorf("Expected: 8\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=2 / (5 - 1)`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || math.Abs(r-0.5) > EPSILON {
+		t.Errorf("Expected: 0.5\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=(5 - 1) / 2`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(float64); !ok || math.Abs(r-2) > EPSILON {
+		t.Errorf("Expected: 2\tActual: %v", result)
+	}
+}
+
+func TestLogicalOperators(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=5 > 1`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != true {
+		t.Errorf("Expected: true\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=5 = 5`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != true {
+		t.Errorf("Expected: true\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=5 < 1`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != false {
+		t.Errorf("Expected: false\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=5 <= 5`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != true {
+		t.Errorf("Expected: true\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=5 >= 1`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != true {
+		t.Errorf("Expected: true\tActual: %v", result)
 	}
 }
 
