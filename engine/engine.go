@@ -335,6 +335,17 @@ func (g *Engine) runStack(invoke *Invoke) {
 			} else {
 				ret = output
 			}
+		} else if invoke.arity == 4 {
+			var operand1, operand2, operand3, operand4 interface{}
+			g.pop(&operand4)
+			g.pop(&operand3)
+			g.pop(&operand2)
+			g.pop(&operand1)
+			if output, err := funs.Call4(invoke.fn, operand1, operand2, operand3, operand4); err != nil {
+				ret = err
+			} else {
+				ret = output
+			}
 		}
 	}
 	// NOTE: Remember to g.pop after g.runStack

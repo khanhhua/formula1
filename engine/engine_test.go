@@ -495,3 +495,16 @@ func TestBooleanIf(t *testing.T) {
 		t.Errorf("Expected: 2\tActual: %v", result)
 	}
 }
+
+func TestAdvancedFunctions(t *testing.T) {
+	var engine *Engine
+	var formula *f1Formula.Formula
+	var result interface{}
+
+	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`=VLOOKUP(3, Discounts!A2:B6, 2, 0)`)
+	result, _ = engine.EvalFormula(formula)
+	if math.Abs(result.(float64)-2.5) > EPSILON {
+		t.Errorf("Expected: 2.5\tActual: %v", result)
+	}
+}
