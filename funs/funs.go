@@ -1,6 +1,9 @@
 package funs
 
-import "math"
+import (
+	"errors"
+	"math"
+)
 
 func boolean(input interface{}) bool {
 	switch input.(type) {
@@ -116,4 +119,63 @@ func POWER(num interface{}, power interface{}) float64 {
 		}
 	}
 	return 0.0
+}
+
+// VLOOKUP
+// Use VLOOKUP, one of the lookup and reference functions, when you need to find
+// things in a table or a range by row. For example, look up a price of an
+// automotive part by the part number.
+//
+// In its simplest form, the VLOOKUP function says:
+//
+// =VLOOKUP(Value you want to look up,
+// 					range where you want to lookup the value,
+//					the column number in the range containing the return value,
+// 					Exact Match or Approximate Match – indicated as 0/FALSE or 1/TRUE).
+// @see https://support.office.com/en-us/article/VLOOKUP-function-0bbc8083-26fe-4963-8ab8-93a18ad188a1
+func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool) interface{} {
+	if index < 1 {
+		return errors.New("Index cannot be less than 1")
+	}
+	nativeIndex := index - 1
+
+	switch lookupRange.(type) {
+	case [][]interface{}:
+		var outer [][]interface{}
+		var inner []interface{}
+		outer = lookupRange.([][]interface{})
+		for i := 0; i < len(outer); i++ {
+			inner = outer[i]
+
+			var referenceValue interface{}
+
+			referenceValue = inner[0]
+			switch referenceValue.(type) {
+			case float64:
+				if approx {
+					if result, ok := value.(float64); ok && result == referenceValue.(float64) {
+						return inner[nativeIndex]
+					}
+				} else {
+					if result, ok := value.(float64); ok && result == referenceValue.(float64) {
+						return inner[nativeIndex]
+					}
+				}
+			case string:
+				if approx {
+					if result, ok := value.(string); ok && result == referenceValue.(string) {
+						return inner[nativeIndex]
+					}
+				} else {
+					if result, ok := value.(string); ok && result == referenceValue.(string) {
+						return inner[nativeIndex]
+					}
+				}
+			}
+		}
+
+		return errors.New("N/A")
+	default:
+		return errors.New("Lookup range must be 2D Slice")
+	}
 }
