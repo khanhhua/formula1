@@ -45,6 +45,23 @@ var a4inter = map[string]func(interface{}, interface{}, interface{}, interface{}
 	},
 }
 
+// Exists Checks if a function has been implemented
+func Exists(name string) bool {
+	if _, ok := a1boolmap[name]; ok {
+		return true
+	} else if _, ok := a1float64map[name]; ok {
+		return true
+	} else if _, ok := a2boolmap[name]; ok {
+		return true
+	} else if _, ok := a2float64map[name]; ok {
+		return true
+	} else if _, ok := a4inter[name]; ok {
+		return true
+	} else {
+		return false
+	}
+}
+
 // Call1 Invoke arity-1 functions
 func Call1(name string, input interface{}) (ret interface{}, err error) {
 	if fn, ok := a1boolmap[name]; ok {

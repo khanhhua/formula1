@@ -198,13 +198,17 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	fmt.Printf("- Entry: %v\n", currentNode.Value())
 
 	stackHeight := g.callstack.Len()
-	g.evalNode(currentNode)
+	err := g.evalNode(currentNode)
 	if g.callstack.Len() != stackHeight {
 		panic(errors.New(fmt.Sprintf("Stack not disposed properly: was %d, now %d",
 			stackHeight, g.callstack.Len())))
 	}
 
-	if g.ax == nil {
+	if err != nil {
+		value = err
+		valueType = 0
+		return
+	} else if g.ax == nil {
 		value = "#NA"
 		valueType = 0
 		return
@@ -291,8 +295,14 @@ func (g *Engine) runStack(invoke *Invoke) {
 		g.pop(&operand1)
 
 		switch operand1.(type) {
+		case error:
+			ret = operand1.(error)
+			break
 		case float64:
 			switch operand2.(type) {
+			case error:
+				ret = operand2.(error)
+				break
 			case float64:
 				ret = g.logicalFloat64(invoke.fn, operand1.(float64), operand2.(float64))
 				break
@@ -303,6 +313,9 @@ func (g *Engine) runStack(invoke *Invoke) {
 			break
 		case string:
 			switch operand2.(type) {
+			case error:
+				ret = operand2.(error)
+				break
 			case float64:
 				panic(errors.New("Operation not supported: string vs float64"))
 				break
@@ -350,10 +363,12 @@ func (g *Engine) runStack(invoke *Invoke) {
 	g.push(ret)
 }
 
-func (g *Engine) evalNode(node *f1F.Node) {
+func (g *Engine) evalNode(node *f1F.Node) (err error) {
 	switch node.NodeType() {
 	case f1F.NodeTypeOperator:
-		g.callFunc(node)
+		if err = g.callFunc(node); err != nil {
+			return
+		}
 		break
 	case f1F.NodeTypeFunc:
 		if node.Value() == "TRUE" {
@@ -361,7 +376,10 @@ func (g *Engine) evalNode(node *f1F.Node) {
 		} else if node.Value() == "FALSE" {
 			g.ax = false
 		} else {
-			g.callFunc(node)
+			err = g.callFunc(node)
+			if err != nil {
+				return
+			}
 		}
 		break
 	case f1F.NodeTypeRef:
@@ -371,6 +389,8 @@ func (g *Engine) evalNode(node *f1F.Node) {
 		g.ax = node.Value()
 		break
 	}
+
+	return
 }
 
 func (g *Engine) logicalFloat64(fn string, operand1 float64, operand2 float64) bool {
@@ -406,19 +426,29 @@ func (g *Engine) logicalString(fn string, operand1 string, operand2 string) bool
 }
 
 // run Expand an AST node and pop result from stack to ax
-func (g *Engine) callFunc(node *f1F.Node) {
+func (g *Engine) callFunc(node *f1F.Node) (err error) {
 	var fn string
 	fn = node.Value().(string)
 
 	if fn == "IF" { // The IF-JUMP
 		if g.callIf(node.FirstChild()) {
-			g.evalNode(node.ChildAt(1))
+			err = g.evalNode(node.ChildAt(1))
 		} else if falseBranch := node.ChildAt(2); falseBranch != nil {
-			g.evalNode(falseBranch)
+			err = g.evalNode(falseBranch)
 		} else {
 			g.ax = false
 		}
 
+		if err != nil {
+			return
+		}
+
+		return
+	}
+
+	if !strings.Contains("IDENTITY+-*/>=<=", fn) && !funs.Exists(fn) {
+		println(fmt.Sprintf("Function not exists: %s", fn))
+		err = errors.New(fmt.Sprintf("Function not exists: %s", fn))
 		return
 	}
 
@@ -443,17 +473,25 @@ func (g *Engine) callFunc(node *f1F.Node) {
 			g.push(value)
 			break
 		case f1F.NodeTypeOperator:
-			g.callFunc(childNode)
+			err = g.callFunc(childNode)
+			if err != nil {
+				return
+			}
 			g.push(g.ax)
 			break
 		case f1F.NodeTypeFunc:
-			g.callFunc(childNode)
+			err = g.callFunc(childNode)
+			if err != nil {
+				return
+			}
 			g.push(g.ax)
 			break
 		}
 	}
 	g.runStack(invoke.(*Invoke))
 	g.pop(&g.ax) // Leave the stack
+
+	return
 }
 
 func (g *Engine) callDeref(node *f1F.Node) {
@@ -514,7 +552,9 @@ func (g *Engine) callDeref(node *f1F.Node) {
 // - False: nil, false, 0, error
 // - True: anything else
 func (g *Engine) callIf(node *f1F.Node) bool {
-	g.evalNode(node)
+	if err := g.evalNode(node); err != nil {
+		return false
+	}
 
 	switch g.ax.(type) {
 	case error:
