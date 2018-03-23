@@ -285,36 +285,34 @@ func (g *Engine) runStack(invoke *Invoke) {
 		}
 		g.pop(&operand)
 		ret = operand.(float64) / ax
-	} else if invoke.fn == ">" {
+	} else if strings.Contains(">=<=", invoke.fn) {
 		var operand1, operand2 interface{}
-
 		g.pop(&operand2)
 		g.pop(&operand1)
-		ret = operand1.(float64) > operand2.(float64)
-	} else if invoke.fn == "<" {
-		var operand1, operand2 interface{}
 
-		g.pop(&operand2)
-		g.pop(&operand1)
-		ret = operand1.(float64) < operand2.(float64)
-	} else if invoke.fn == "=" {
-		var operand1, operand2 interface{}
+		switch operand1.(type) {
+		case float64:
+			switch operand2.(type) {
+			case float64:
+				ret = g.logicalFloat64(invoke.fn, operand1.(float64), operand2.(float64))
+				break
+			case string:
+				panic(errors.New("Operation not supported: float64 vs string"))
+				break
+			}
+			break
+		case string:
+			switch operand2.(type) {
+			case float64:
+				panic(errors.New("Operation not supported: string vs float64"))
+				break
+			case string:
+				ret = g.logicalString(invoke.fn, operand1.(string), operand2.(string))
+				break
+			}
+			break
+		}
 
-		g.pop(&operand2)
-		g.pop(&operand1)
-		ret = operand1.(float64) == operand2.(float64)
-	} else if invoke.fn == ">=" {
-		var operand1, operand2 interface{}
-
-		g.pop(&operand2)
-		g.pop(&operand1)
-		ret = operand1.(float64) >= operand2.(float64)
-	} else if invoke.fn == "<=" {
-		var operand1, operand2 interface{}
-
-		g.pop(&operand2)
-		g.pop(&operand1)
-		ret = operand1.(float64) <= operand2.(float64)
 	} else {
 		// Non primitive operators: + - * /
 		// NOTE: DO NOT REFACTOR INTO DYNAMIC METHOD CALLING WITH ARGS...
@@ -375,6 +373,38 @@ func (g *Engine) evalNode(node *f1F.Node) {
 	}
 }
 
+func (g *Engine) logicalFloat64(fn string, operand1 float64, operand2 float64) bool {
+	if fn == ">" {
+		return operand1 > operand2
+	} else if fn == "<" {
+		return operand1 < operand2
+	} else if fn == "=" {
+		return operand1 == operand2
+	} else if fn == ">=" {
+		return operand1 >= operand2
+	} else if fn == "<=" {
+		return operand1 <= operand2
+	} else {
+		panic(errors.New(fmt.Sprintf("Invalid operator %s", fn)))
+	}
+}
+
+func (g *Engine) logicalString(fn string, operand1 string, operand2 string) bool {
+	if fn == ">" {
+		return operand1 > operand2
+	} else if fn == "<" {
+		return operand1 < operand2
+	} else if fn == "=" {
+		return operand1 == operand2
+	} else if fn == ">=" {
+		return operand1 >= operand2
+	} else if fn == "<=" {
+		return operand1 <= operand2
+	} else {
+		panic(errors.New(fmt.Sprintf("Invalid operator %s", fn)))
+	}
+}
+
 // run Expand an AST node and pop result from stack to ax
 func (g *Engine) callFunc(node *f1F.Node) {
 	var fn string
@@ -403,6 +433,11 @@ func (g *Engine) callFunc(node *f1F.Node) {
 		case f1F.NodeTypeRef:
 			g.callDeref(childNode)
 			g.push(g.ax)
+			break
+		case f1F.NodeTypeLiteral:
+			value := childNode.Value()
+			g.push(value)
+			break
 		case f1F.NodeTypeFloat:
 			value := childNode.Value()
 			g.push(value)

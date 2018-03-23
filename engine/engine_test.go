@@ -253,6 +253,13 @@ func TestLogicalOperators(t *testing.T) {
 	}
 
 	engine = NewEngine(xlFile)
+	formula = f1Formula.NewFormula(`="hello" = "hello"`)
+	result, _ = engine.EvalFormula(formula)
+	if r, ok := result.(bool); !ok || r != true {
+		t.Errorf("Expected: true\tActual: %v", result)
+	}
+
+	engine = NewEngine(xlFile)
 	formula = f1Formula.NewFormula(`=5 < 1`)
 	result, _ = engine.EvalFormula(formula)
 	if r, ok := result.(bool); !ok || r != false {
