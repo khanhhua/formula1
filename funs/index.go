@@ -20,8 +20,9 @@ var a2boolmap = map[string]func(interface{}, interface{}) bool{
 }
 
 var a2float64map = map[string]func(interface{}, interface{}) float64{
-	"SUM":   SUM2,
-	"POWER": POWER,
+	"SUM":     SUM2,
+	"POWER":   POWER,
+	"COUNTIF": COUNTIF,
 }
 
 var a4inter = map[string]func(interface{}, interface{}, interface{}, interface{}) interface{}{
