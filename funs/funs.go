@@ -179,3 +179,53 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 		return errors.New("Lookup range must be 2D Slice")
 	}
 }
+
+func COUNTIF(lookupRange interface{}, referenceValue interface{}) (count float64) {
+	count = 0
+
+	switch lookupRange.(type) {
+	case [][]interface{}:
+		var outer [][]interface{}
+		var inner []interface{}
+		outer = lookupRange.([][]interface{})
+		for i := 0; i < len(outer); i++ {
+			inner = outer[i]
+
+			for j := 0; j < len(inner); j++ {
+				value := inner[j]
+				switch referenceValue.(type) {
+				case float64:
+					if result, ok := value.(float64); ok && result == referenceValue.(float64) {
+						count++
+					}
+				case string:
+					if result, ok := value.(string); ok && result == referenceValue.(string) {
+						count++
+					}
+				}
+			}
+		}
+
+		return count
+	case []interface{}:
+		inner := lookupRange.([]interface{})
+
+		for j := 0; j < len(inner); j++ {
+			value := inner[j]
+			switch referenceValue.(type) {
+			case float64:
+				if result, ok := value.(float64); ok && result == referenceValue.(float64) {
+					count++
+				}
+			case string:
+				if result, ok := value.(string); ok && result == referenceValue.(string) {
+					count++
+				}
+			}
+		}
+
+		return count
+	default:
+		return 0.0
+	}
+}

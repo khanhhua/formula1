@@ -52,4 +52,14 @@ func TestCall2(t *testing.T) {
 	} else if result.(float64) != 100 {
 		t.Errorf("Expected: 100\tActual: %v", result)
 	}
+
+	var lookupRange = make([]interface{}, 2)
+
+	lookupRange[0] = "hello"
+	lookupRange[1] = "World"
+	if result, err := Call2("COUNTIF", lookupRange, "hello"); err != nil {
+		t.Errorf("Call2 error. %v", err)
+	} else if result.(float64) != 1 {
+		t.Errorf("Expected: 1\tActual: %v", result)
+	}
 }
