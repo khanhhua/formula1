@@ -15,13 +15,10 @@ import (
 
 // Engine the F1 Engine
 type Engine struct {
-	xlFile *xlsx.File
+	xlFile      *xlsx.File
+	activeSheet *xlsx.Sheet
 	// Register AX
 	ax interface{}
-	// Current Code Index
-	cci int
-	// Max CCI
-	maxCCI int
 	// Execution stack
 	callstack *stack.Stack
 	// Execute and remember stuff here
@@ -97,7 +94,10 @@ func (g *Engine) GetRange(rangeIDString string) (cellRange Range, err error) {
 	if strings.Contains(rangeIDString, "!") {
 		splat := strings.Split(rangeIDString, "!")
 		sheet = g.xlFile.Sheet[splat[0]]
+		g.activeSheet = sheet
 		rangeIDString = splat[1]
+	} else if g.activeSheet != nil {
+		sheet = g.activeSheet
 	} else {
 		sheet = g.xlFile.Sheets[0]
 	}
@@ -158,7 +158,10 @@ func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 	if strings.Contains(cellIDString, "!") {
 		splat := strings.Split(cellIDString, "!")
 		sheet = g.xlFile.Sheet[splat[0]]
+		g.activeSheet = sheet
 		cellIDString = splat[1]
+	} else if g.activeSheet != nil {
+		sheet = g.activeSheet
 	} else {
 		sheet = g.xlFile.Sheets[0]
 	}
@@ -182,6 +185,12 @@ func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 	}
 }
 
+func (g *Engine) Inspect() map[string]string {
+	return map[string]string{
+		"stackHeight": fmt.Sprintf("%d", g.callstack.Len()),
+	}
+}
+
 // Execute the g
 func (g *Engine) Execute(inputs map[string]string) (names []string, outputs map[string]string) {
 	// formula := NewFormula(formulaText)
@@ -194,14 +203,17 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	var currentNode *f1F.Node
 
 	currentNode = f.GetEntryNode()
+	fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
 	fmt.Printf("Evaluating formula...\n")
 	fmt.Printf("- Entry: %v\n", currentNode.Value())
 
 	stackHeight := g.callstack.Len()
 	err := g.evalNode(currentNode)
 	if g.callstack.Len() != stackHeight {
-		panic(errors.New(fmt.Sprintf("Stack not disposed properly: was %d, now %d",
-			stackHeight, g.callstack.Len())))
+		// panic(errors.New(fmt.Sprintf("Stack not disposed properly: was %d, now %d",
+		// 	stackHeight, g.callstack.Len())))
+		fmt.Printf("***Stack not disposed properly: was %d, now %d ***\n",
+			stackHeight, g.callstack.Len())
 	}
 
 	if err != nil {
@@ -215,7 +227,8 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	}
 
 	value = g.ax
-
+	fmt.Printf("f() = %v\n", value)
+	fmt.Printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n")
 	switch g.ax.(type) {
 	case string:
 		valueType = f1F.NodeTypeLiteral
@@ -342,6 +355,16 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand2)
 			g.pop(&operand1)
 			if output, err := funs.Call2(invoke.fn, operand1, operand2); err != nil {
+				ret = err
+			} else {
+				ret = output
+			}
+		} else if invoke.arity == 3 {
+			var operand1, operand2, operand3 interface{}
+			g.pop(&operand3)
+			g.pop(&operand2)
+			g.pop(&operand1)
+			if output, err := funs.Call3(invoke.fn, operand1, operand2, operand3); err != nil {
 				ret = err
 			} else {
 				ret = output
@@ -480,7 +503,12 @@ func (g *Engine) callFunc(node *f1F.Node) (err error) {
 			g.push(g.ax)
 			break
 		case f1F.NodeTypeFunc:
+			stackHeight := g.callstack.Len()
 			err = g.callFunc(childNode)
+			if stackHeight != g.callstack.Len() {
+				fmt.Printf("***Stack corruption: was %d, now %d***\n", stackHeight, g.callstack.Len())
+			}
+
 			if err != nil {
 				return
 			}
@@ -496,6 +524,7 @@ func (g *Engine) callFunc(node *f1F.Node) (err error) {
 
 func (g *Engine) callDeref(node *f1F.Node) {
 	cellIDString := node.Value().(string)
+	activeSheet := g.activeSheet
 
 	if strings.Contains(cellIDString, ":") {
 		// Request for a range, even for single dimension ranges
@@ -507,6 +536,7 @@ func (g *Engine) callDeref(node *f1F.Node) {
 				result := make([]interface{}, len(cells))
 				for i := range result {
 					if formulaString := cells[i].formula; formulaString != "" {
+						fmt.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
 						formula := f1F.NewFormula(formulaString)
 						g.EvalFormula(formula) // g.ax is updated
 						result[i] = g.ax
@@ -537,7 +567,8 @@ func (g *Engine) callDeref(node *f1F.Node) {
 
 	} else {
 		if cell, err := g.GetCell(cellIDString); err != nil {
-			fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+			fmt.Printf("Could not deref %s. Reason: %v\n", cellIDString, err)
+			g.activeSheet = activeSheet
 			return
 		} else if cell.formula != "" {
 			formula := f1F.NewFormula(cell.formula)
@@ -546,6 +577,15 @@ func (g *Engine) callDeref(node *f1F.Node) {
 			g.ax = cell.value
 		}
 	}
+	fmt.Printf(">>>>>\n")
+	if activeSheet != nil {
+		fmt.Printf("Deref'd cell(s): %s!%s = %v\n", activeSheet.Name, cellIDString, g.ax)
+	} else {
+		fmt.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
+	}
+	fmt.Printf("Stack height: %d\n", g.callstack.Len())
+	fmt.Printf("<<<<<\n")
+	g.activeSheet = activeSheet
 }
 
 // callIf Evaluate a node to a bool in MS-EXCEL

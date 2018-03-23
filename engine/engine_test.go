@@ -515,3 +515,14 @@ func TestAdvancedFunctions(t *testing.T) {
 		t.Errorf("Expected: 2.5\tActual: %v", result)
 	}
 }
+
+func TestActualPricer(t *testing.T) {
+	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
+	engine := NewEngine(localFile)
+
+	formula := f1Formula.NewFormula(`=IF(OR(AND($E$18,$C$24),AND(OR($C$18,$D$18),$C$24,'Input'!$E$41>100000)),"Decline","OK")`)
+	engine.EvalFormula(formula)
+	if insp := engine.Inspect(); insp["stackHeight"] != "0" {
+		t.Errorf("Expected: 0\tActual: %s", insp["stackHeight"])
+	}
+}
