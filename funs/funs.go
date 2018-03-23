@@ -26,6 +26,11 @@ func OR2(input1 interface{}, input2 interface{}) bool {
 	return OR(input1) || OR(input2)
 }
 
+// OR2 Evaluate to a boolean
+func OR3(input1 interface{}, input2 interface{}, input3 interface{}) bool {
+	return OR(input1) || OR(input2) || OR(input3)
+}
+
 // AND Evaluate to a boolean
 func AND(input interface{}) bool {
 	return boolean(input)
@@ -36,9 +41,18 @@ func AND2(input1 interface{}, input2 interface{}) bool {
 	return boolean(input1) && boolean(input2)
 }
 
+func AND3(input1 interface{}, input2 interface{}, input3 interface{}) bool {
+	return boolean(input1) && boolean(input2) && boolean(input3)
+}
+
 // FLOOR Floor function
 func FLOOR(input interface{}) float64 {
 	return math.Floor(input.(float64))
+}
+
+func ROUND(input interface{}, precision float64) float64 {
+	pow := math.Pow(10, precision)
+	return math.Round(input.(float64)*pow) / pow
 }
 
 // SUM Sum of single range
@@ -67,7 +81,13 @@ func SUM(input interface{}) float64 {
 	case []interface{}:
 		sum := 0.0
 		for _, item := range input.([]interface{}) {
-			sum += item.(float64)
+			switch item.(type) {
+			case float64:
+				sum += item.(float64)
+				break
+			default:
+				break
+			}
 		}
 		return sum
 	case [][]interface{}:
