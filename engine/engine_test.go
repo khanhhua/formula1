@@ -519,10 +519,12 @@ func TestAdvancedFunctions(t *testing.T) {
 func TestActualPricer(t *testing.T) {
 	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
 	engine := NewEngine(localFile)
-
-	formula := f1Formula.NewFormula(`=IF(OR(AND($E$18,$C$24),AND(OR($C$18,$D$18),$C$24,'Input'!$E$41>100000)),"Decline","OK")`)
+	formula := f1Formula.NewFormula(`=((B33-B32+1-IF(C34="Leap Year",1,0))/365)>=3`)
+	// formula := f1Formula.NewFormula(`=ROUND(IF(((B33-B32+1-IF(C34="Leap Year",1,0))/365)>=3,((B33-B32+1-IF(C34="Leap Year",1,0))/365)*0.95,((B33-B32+1-IF(C34="Leap Year",1,0))/365)),5)`)
 	engine.EvalFormula(formula)
-	if insp := engine.Inspect(); insp["stackHeight"] != "0" {
-		t.Errorf("Expected: 0\tActual: %s", insp["stackHeight"])
-	}
+	// formula := f1Formula.NewFormula(`=IF(OR(AND($E$18,$C$24),AND(OR($C$18,$D$18),$C$24,'Input'!$E$41>100000)),"Decline","OK")`)
+	// engine.EvalFormula(formula)
+	// if insp := engine.Inspect(); insp["stackHeight"] != "0" {
+	// 	t.Errorf("Expected: 0\tActual: %s", insp["stackHeight"])
+	// }
 }

@@ -85,15 +85,6 @@ func TestMultiInfixOperatorAtRoot(t *testing.T) {
 	if result := formula.root.FirstChild().FirstChild().Value().(string); result != "+" {
 		t.Errorf("POSTFIX: ((10 20 30)+ 1 2)-. Expect: 10\tActual: %v", result)
 	}
-	// if result := formula.root.FirstChild().FirstChild().ChildAt(0).Value().(float64); result != 10 {
-	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 10\tActual: %v", result)
-	// }
-	// if result := formula.root.FirstChild().FirstChild().ChildAt(1).Value().(float64); result != 20 {
-	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 20\tActual: %v", result)
-	// }
-	// if result := formula.root.FirstChild().ChildAt(1).Value().(float64); result != 30 {
-	// 	t.Errorf("POSTFIX: ((10 20)+ 30)-. Expect: 1\tActual: %v", result)
-	// }
 }
 
 func TestSingleParentheses(t *testing.T) {
@@ -321,12 +312,86 @@ func TestNestedFunctionsWithInfixes(t *testing.T) {
 	}
 }
 
-//
-// func TestIfOrFormula(t *testing.T) {
-// 	formulaText := `=IF(OR(CalculatorNB!$B$12="Decline",CalculatorNB!$B$12="Refer"),CalculatorNB!$B$12,CalculatorNB!E48)`
-//
-// 	formula := NewFormula(formulaText)
-// 	if formula.root.value != "root" {
-// 		t.Errorf("Formula root's value must be 'root'")
-// 	}
-// }
+func TestPrecedenceFormula(t *testing.T) {
+	var formula *Formula
+
+	formula = NewFormula(`=(1 - 2 + 3) / 5`)
+	entry := formula.GetEntryNode()
+
+	if result := entry.value; result.(string) != "/" {
+		t.Errorf("Expected: /; Actual: %v", result)
+	}
+	if result := entry.FirstChild().value; result.(string) != "IDENTITY" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().value; result.(string) != "+" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().value; result.(string) != "-" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().FirstChild().value; result.(float64) != 1 {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().ChildAt(1).value; result.(float64) != 2 {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().ChildAt(1).value; result.(float64) != 3 {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.ChildAt(1).value; result.(float64) != 5 {
+		t.Errorf("Expected: Func\tActual: %v", result)
+	}
+
+}
+
+func TestPrecedenceNestedFunctionFormula(t *testing.T) {
+	var formula *Formula
+
+	formula = NewFormula(`=(1 - 2 + IF(TRUE(),10,20)) / 5`)
+	entry := formula.GetEntryNode()
+
+	if result := entry.value; result.(string) != "/" {
+		t.Errorf("Expected: /; Actual: %v", result)
+	}
+	if result := entry.FirstChild().value; result.(string) != "IDENTITY" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().value; result.(string) != "+" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().value; result.(string) != "-" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().FirstChild().value; result.(float64) != 1 {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().FirstChild().ChildAt(1).value; result.(float64) != 2 {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.FirstChild().FirstChild().ChildAt(1).value; result.(string) != "IF" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.ChildAt(1).value; result.(float64) != 5 {
+		t.Errorf("Expected: Func\tActual: %v", result)
+	}
+
+}
+
+func TestPricerFormula(t *testing.T) {
+	var formula *Formula
+
+	formula = NewFormula(`=(B33-B32+1-IF(C34="Leap Year",1,0)) / 365`)
+	entry := formula.GetEntryNode()
+
+	if result := entry.value; result.(string) != "/" {
+		t.Errorf("Expected: /; Actual: %v", result)
+	}
+	if result := entry.FirstChild().value; result.(string) != "IDENTITY" {
+		t.Errorf("Expected: Operator\tActual: %v", result)
+	}
+	if result := entry.ChildAt(1).value; result.(float64) != 365 {
+		t.Errorf("Expected: Func\tActual: %v", result)
+	}
+
+}

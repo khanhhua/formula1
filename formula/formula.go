@@ -99,7 +99,9 @@ func NewFormula(text string) *Formula {
 		if tsubtype == efp.TokenSubTypeStart {
 			value, nodeType = resolveNodeType(ttype, tsubtype, tvalue)
 			if current.infixChild != nil {
+				parent := current
 				current = current.infixChild.makeNode(nodeType, value)
+				current.parent = parent
 			} else {
 				current = current.makeNode(nodeType, value)
 			}
