@@ -192,8 +192,28 @@ func (g *Engine) Inspect() map[string]string {
 }
 
 // Execute the g
-func (g *Engine) Execute(inputs map[string]string) (names []string, outputs map[string]string) {
-	// formula := NewFormula(formulaText)
+func (g *Engine) Execute(inputs map[string]string, outputs *map[string]string) (err error) {
+	for cellID, value := range inputs {
+		g.SetCell(cellID, value)
+	}
+
+	for cellID := range *outputs {
+		var cell Cell
+		cell, err = g.GetCell(cellID)
+		if err != nil {
+			fmt.Printf("***Could not get cell %s. Reason: %v\n", cellID, err)
+			return
+		}
+		if cell.formula != "" {
+			fmt.Printf("Formula: %s\n\n", cell.formula)
+			formula := f1F.NewFormula(cell.formula)
+			value, _ := g.EvalFormula(formula)
+
+			(*outputs)[cellID] = fmt.Sprintf("%v", value)
+		} else {
+			(*outputs)[cellID] = fmt.Sprintf("%v", cell.value)
+		}
+	}
 
 	return
 }
@@ -240,6 +260,26 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 		valueType = f1F.NodeTypeFloat
 	}
 	return
+}
+
+// SetCell Set value for a cell
+func (g *Engine) SetCell(cellID string, value interface{}) {
+	var sheetName string
+	if strings.Contains(cellID, "!") {
+		splat := strings.Split(cellID, "!")
+		sheetName = splat[0]
+		cellID = splat[1]
+	} else {
+		sheetName = "Input"
+	}
+
+	sheet := g.xlFile.Sheet[sheetName]
+	if col, row, err := xlsx.GetCoordsFromCellIDString(cellID); err != nil {
+		return
+	} else {
+		cell := sheet.Cell(row, col)
+		cell.SetValue(value)
+	}
 }
 
 // push Push whatever onto top of the g callstack
