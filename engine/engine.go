@@ -279,10 +279,22 @@ func (g *Engine) runStack(invoke *Invoke) {
 
 		for i := invoke.arity; i >= 2; i-- {
 			g.pop(&operand)
-			ax += operand.(float64)
+			switch operand.(type) {
+			case float64:
+				ax += operand.(float64)
+				break
+			}
 		}
+
 		g.pop(&operand)
-		ret = operand.(float64) - ax
+		switch operand.(type) {
+		case float64:
+			ret = operand.(float64) - ax
+			break
+		default:
+			ret = 0.0
+			break
+		}
 	} else if invoke.fn == "*" {
 		var operand interface{}
 		var ax float64 = 1.0
@@ -320,7 +332,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 				ret = g.logicalFloat64(invoke.fn, operand1.(float64), operand2.(float64))
 				break
 			case string:
-				panic(errors.New("Operation not supported: float64 vs string"))
+				panic(fmt.Errorf("Operation not supported: float64 %f vs string '%s'",
+					operand1.(float64), operand2.(string)))
 				break
 			}
 			break
@@ -330,7 +343,8 @@ func (g *Engine) runStack(invoke *Invoke) {
 				ret = operand2.(error)
 				break
 			case float64:
-				panic(errors.New("Operation not supported: string vs float64"))
+				panic(fmt.Errorf("Operation not supported: string '%s' vs float64 %f",
+					operand1.(string), operand2.(float64)))
 				break
 			case string:
 				ret = g.logicalString(invoke.fn, operand1.(string), operand2.(string))
@@ -571,6 +585,7 @@ func (g *Engine) callDeref(node *f1F.Node) {
 			g.activeSheet = activeSheet
 			return
 		} else if cell.formula != "" {
+			fmt.Printf("FORMULA: %s\n", cell.formula)
 			formula := f1F.NewFormula(cell.formula)
 			g.EvalFormula(formula) // g.ax is updated
 		} else if cell.value != "" {
@@ -578,10 +593,12 @@ func (g *Engine) callDeref(node *f1F.Node) {
 		}
 	}
 	fmt.Printf(">>>>>\n")
-	if activeSheet != nil {
+	if strings.Contains(cellIDString, "!") {
+		fmt.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
+	} else if activeSheet != nil {
 		fmt.Printf("Deref'd cell(s): %s!%s = %v\n", activeSheet.Name, cellIDString, g.ax)
 	} else {
-		fmt.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
+		fmt.Printf("Deref'd cell(s): default first sheet! %s = %v\n", cellIDString, g.ax)
 	}
 	fmt.Printf("Stack height: %d\n", g.callstack.Len())
 	fmt.Printf("<<<<<\n")
