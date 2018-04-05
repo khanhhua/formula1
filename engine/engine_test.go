@@ -516,60 +516,60 @@ func TestAdvancedFunctions(t *testing.T) {
 	}
 }
 
-func TestActualPricer(t *testing.T) {
-	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
-	var engine *Engine
-	var formula *f1Formula.Formula
+// func TestActualPricer(t *testing.T) {
+// 	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
+// 	var engine *Engine
+// 	var formula *f1Formula.Formula
 
-	engine = NewEngine(localFile)
-	engine.activeSheet = localFile.Sheet["Input"]
-	formula = f1Formula.NewFormula(`=IF(OR(CalculatorNB!$B$12="Decline",CalculatorNB!$B$12="Refer"),CalculatorNB!$B$12,SUM(CalculatorNB!E37:E40))`)
-	engine.EvalFormula(formula)
-	if insp := engine.Inspect(); insp["stackHeight"] != "0" {
-		t.Errorf("Expected: 0\tActual: %s", insp["stackHeight"])
-	}
-}
+// 	engine = NewEngine(localFile)
+// 	engine.activeSheet = localFile.Sheet["Input"]
+// 	formula = f1Formula.NewFormula(`=IF(OR(CalculatorNB!$B$12="Decline",CalculatorNB!$B$12="Refer"),CalculatorNB!$B$12,SUM(CalculatorNB!E37:E40))`)
+// 	engine.EvalFormula(formula)
+// 	if insp := engine.Inspect(); insp["stackHeight"] != "0" {
+// 		t.Errorf("Expected: 0\tActual: %s", insp["stackHeight"])
+// 	}
+// }
 
-func TestExecute(t *testing.T) {
-	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
-	var engine *Engine
-	var err error
-	var inputs map[string]string
-	var outputs *map[string]string
+// func TestExecute(t *testing.T) {
+// 	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
+// 	var engine *Engine
+// 	var err error
+// 	var inputs map[string]string
+// 	var outputs *map[string]string
 
-	engine = NewEngine(localFile)
-	inputs = map[string]string{
-		"Input!E18": "1000000.0",
-		"Input!E20": "45000.0",
-	}
+// 	engine = NewEngine(localFile)
+// 	inputs = map[string]string{
+// 		"Input!E18": "1000000.0",
+// 		"Input!E20": "45000.0",
+// 	}
 
-	outputs = &map[string]string{
-		"Input!E35": "",
-	}
+// 	outputs = &map[string]string{
+// 		"Input!E35": "",
+// 	}
 
-	err = engine.Execute(inputs, outputs)
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
-	}
-	if (*outputs)["Input!E35"] == "" {
-		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
-	}
+// 	err = engine.Execute(inputs, outputs)
+// 	if err != nil {
+// 		t.Errorf("Unexpected error %v", err)
+// 	}
+// 	if (*outputs)["Input!E35"] == "" {
+// 		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
+// 	}
 
-	engine = NewEngine(localFile)
-	inputs = map[string]string{
-		"Input!E18": "2000000.0",
-		"Input!E20": "0.0",
-	}
+// 	engine = NewEngine(localFile)
+// 	inputs = map[string]string{
+// 		"Input!E18": "2000000.0",
+// 		"Input!E20": "0.0",
+// 	}
 
-	outputs = &map[string]string{
-		"Input!E35": "",
-	}
+// 	outputs = &map[string]string{
+// 		"Input!E35": "",
+// 	}
 
-	err = engine.Execute(inputs, outputs)
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
-	}
-	if (*outputs)["Input!E35"] == "" {
-		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
-	}
-}
+// 	err = engine.Execute(inputs, outputs)
+// 	if err != nil {
+// 		t.Errorf("Unexpected error %v", err)
+// 	}
+// 	if (*outputs)["Input!E35"] == "" {
+// 		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
+// 	}
+// }
