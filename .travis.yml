@@ -5,3 +5,6 @@ go:
 
 git:
   depth: 0
+
+script:
+  - go test
