@@ -7,4 +7,4 @@ git:
   depth: 1
 
 script:
-  - go test
+  - go test ./...
