@@ -1,0 +1,11 @@
+package: github.com/formula1
+import:
+- package: github.com/golang-collections/collections
+  subpackages:
+  - stack
+- package: github.com/khanhhua/formula1
+  subpackages:
+  - formula
+  - funs
+- package: github.com/tealeg/xlsx
+- package: github.com/xuri/efp
