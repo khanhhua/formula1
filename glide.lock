@@ -1,15 +1,12 @@
-hash: 3acc6d3da2dea3c5eb9a8d12d33eaf1f748e5b6bbb3217ab61946cc2998308de
-updated: 2018-04-18T17:23:09.020020161+08:00
+hash: b4983c5c43e5fc692c68c4da4a385bcade34a86082b557b784b08753f8531df5
+updated: 2018-04-19T09:55:18.049171625+08:00
 imports:
 - name: github.com/golang-collections/collections
   version: 604e922904d35e97f98a774db7881f049cd8d970
   subpackages:
   - stack
-- name: github.com/khanhhua/formula1
-  version: a8c678c31bbf58cc3f70a8ad5c5032db06353da2
-  subpackages:
-  - formula
-  - funs
+- name: github.com/sirupsen/logrus
+  version: c155da19408a8799da419ed3eeb0cb5db0ad5dbc
 - name: github.com/tealeg/xlsx
   version: d40e2bb185733dd4bc3c4a1929c35ee844ed3379
 - name: github.com/xuri/efp

@@ -29,6 +29,12 @@ func TestCall1(t *testing.T) {
 }
 
 func TestCall2(t *testing.T) {
+	if result, err := Call2("IFERROR", 1.1, 2.2); err != nil {
+		t.Errorf("Call1 error. %v", err)
+	} else if result.(float64) != 1.1 {
+		t.Errorf("Expected: 1\tActual: %v", result)
+	}
+
 	if result, err := Call2("OR", 1.1, 2.2); err != nil {
 		t.Errorf("Call1 error. %v", err)
 	} else if result.(bool) != true {

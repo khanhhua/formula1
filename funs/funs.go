@@ -3,6 +3,14 @@ package funs
 import (
 	"errors"
 	"math"
+	"strconv"
+	"strings"
+)
+
+const (
+	CompareEqual   int = 0
+	CompareGreater int = 1
+	CompareLesser  int = -1
 )
 
 func boolean(input interface{}) bool {
@@ -24,6 +32,15 @@ func OR(input interface{}) bool {
 // OR2 Evaluate to a boolean
 func OR2(input1 interface{}, input2 interface{}) bool {
 	return OR(input1) || OR(input2)
+}
+
+func IFERROR(input1 interface{}, input2 interface{}) interface{} {
+	switch input1.(type) {
+	case error:
+		return input2
+	default:
+		return input1
+	}
 }
 
 // OR2 Evaluate to a boolean
@@ -139,6 +156,69 @@ func POWER(num interface{}, power interface{}) float64 {
 		}
 	}
 	return 0.0
+}
+
+// MATCH
+// MATCH is an Excel function used to locate the position of a lookup value in a
+// row, column, or table. MATCH supports approximate and exact matching, and
+// wildcards (* ?) for partial matches. Often, the INDEX function is combined
+// with MATCH to retrieve the value at the position returned by MATCH.
+func MATCH(value interface{}, lookupRange interface{}, matchType int) int {
+	switch lookupRange.(type) {
+	case []interface{}:
+		outer := lookupRange.([]interface{})
+		if matchType == 1 {
+			for i := 0; i < len(outer); i++ {
+				if compare(value, outer[i]) == CompareGreater {
+					return i + 1
+				}
+			}
+		} else if matchType == -1 {
+			for i := 0; i < len(outer); i++ {
+				if compare(value, outer[i]) == CompareLesser {
+					return i + 1
+				}
+			}
+		} else {
+			for i := 0; i < len(outer); i++ {
+				if compare(value, outer[i]) == CompareEqual {
+					return i + 1
+				}
+			}
+		}
+	}
+
+	return 0
+}
+
+func compare(a, b interface{}) int {
+	var sA, sB string
+
+	switch a.(type) {
+	case string:
+		sA = a.(string)
+		break
+	case int:
+		sA = strconv.FormatInt(int64(a.(int)), 10)
+		break
+	case float64:
+		sA = strconv.FormatFloat(a.(float64), 4, 9, 64)
+		break
+	}
+
+	switch b.(type) {
+	case string:
+		sB = b.(string)
+		break
+	case int:
+		sB = strconv.FormatInt(int64(b.(int)), 10)
+		break
+	case float64:
+		sB = strconv.FormatFloat(b.(float64), 4, 9, 64)
+		break
+	}
+
+	return strings.Compare(sA, sB)
 }
 
 // VLOOKUP

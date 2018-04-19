@@ -1,6 +1,32 @@
 package funs
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
+
+func TestMATCH(t *testing.T) {
+	lookupRange := []interface{}{2, 4, 6, 8, 10}
+	if result := MATCH(2, lookupRange, 0); result != 1 {
+		t.Errorf("Expected: 1\tActual:%v", result)
+	}
+	if result := MATCH(3, lookupRange, 1); result != 1 {
+		t.Errorf("Expected: 1\tActual:%v", result)
+	}
+	if result := MATCH(3, lookupRange, -1); result != 2 {
+		t.Errorf("Expected: 1\tActual:%v", result)
+	}
+}
+
+func TestIFERROR(t *testing.T) {
+	if result := IFERROR(1.1, 2.2); result != 1.1 {
+		t.Errorf("Expected: 1.1\tActual:%v", result)
+	}
+
+	if result := IFERROR(errors.New("#ERROR"), 2.2); result != 2.2 {
+		t.Errorf("Expected: 2.2\tActual:%v", result)
+	}
+}
 
 func TestFLOOR(t *testing.T) {
 	if result := FLOOR(1.1); result != 1 {

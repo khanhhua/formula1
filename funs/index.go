@@ -33,6 +33,22 @@ var a2float64map = map[string]func(interface{}, interface{}) float64{
 	"COUNTIF": COUNTIF,
 }
 
+var a2int64map = map[string]func(interface{}, interface{}) int{
+	"MATCH": func(p1, p2 interface{}) int {
+		return MATCH(p1, p2, 1)
+	},
+}
+
+var a3int64map = map[string]func(interface{}, interface{}, interface{}) int{
+	"MATCH": func(p1, p2 interface{}, p3 interface{}) int {
+		return MATCH(p1, p2, int(p3.(float64)))
+	},
+}
+
+var a2inter = map[string]func(interface{}, interface{}) interface{}{
+	"IFERROR": IFERROR,
+}
+
 var a4inter = map[string]func(interface{}, interface{}, interface{}, interface{}) interface{}{
 	"VLOOKUP": func(p1 interface{}, p2 interface{}, p3 interface{}, p4 interface{}) interface{} {
 		var index int
@@ -62,9 +78,15 @@ func Exists(name string) bool {
 		return true
 	} else if _, ok := a2boolmap[name]; ok {
 		return true
+	} else if _, ok := a2int64map[name]; ok {
+		return true
 	} else if _, ok := a3boolmap[name]; ok {
 		return true
+	} else if _, ok := a3int64map[name]; ok {
+		return true
 	} else if _, ok := a2float64map[name]; ok {
+		return true
+	} else if _, ok := a2inter[name]; ok {
 		return true
 	} else if _, ok := a4inter[name]; ok {
 		return true
@@ -91,6 +113,10 @@ func Call2(name string, input1 interface{}, input2 interface{}) (ret interface{}
 		return fn(input1, input2), nil
 	} else if fn, ok := a2float64map[name]; ok {
 		return fn(input1, input2), nil
+	} else if fn, ok := a2int64map[name]; ok {
+		return fn(input1, input2), nil
+	} else if fn, ok := a2inter[name]; ok {
+		return fn(input1, input2), nil
 	}
 
 	err = fmt.Errorf("Invalid fun %s", name)
@@ -100,6 +126,8 @@ func Call2(name string, input1 interface{}, input2 interface{}) (ret interface{}
 // Call2 Invoke arity-2 functions
 func Call3(name string, input1 interface{}, input2 interface{}, input3 interface{}) (ret interface{}, err error) {
 	if fn, ok := a3boolmap[name]; ok {
+		return fn(input1, input2, input3), nil
+	} else if fn, ok := a3int64map[name]; ok {
 		return fn(input1, input2, input3), nil
 	}
 

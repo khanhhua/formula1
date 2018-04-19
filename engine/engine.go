@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -41,6 +43,12 @@ type Range struct {
 	colCount int
 	// height Number of rows
 	rowCount int
+}
+
+var logger *log.Logger
+
+func init() {
+	logger = log.New(os.Stdout, "ENGINE ", log.Lshortfile)
 }
 
 // ToSlice Get a copy of the 1D Range
@@ -171,6 +179,8 @@ func (g *Engine) GetCell(cellIDString string) (cell Cell, err error) {
 		return
 	} else {
 		xlCell := sheet.Cell(row, col)
+		logger.Printf("Cell: %s, fmt: %s", cellIDString, xlCell.NumFmt)
+
 		if f, err := strconv.ParseFloat(xlCell.Value, 64); err != nil {
 			cell.value = xlCell.Value
 		} else {
@@ -201,11 +211,11 @@ func (g *Engine) Execute(inputs map[string]string, outputs *map[string]string) (
 		var cell Cell
 		cell, err = g.GetCell(cellID)
 		if err != nil {
-			fmt.Printf("***Could not get cell %s. Reason: %v\n", cellID, err)
+			logger.Printf("***Could not get cell %s. Reason: %v\n", cellID, err)
 			return
 		}
 		if cell.formula != "" {
-			fmt.Printf("Formula: %s\n\n", cell.formula)
+			logger.Printf("Formula: %s\n\n", cell.formula)
 			formula := f1F.NewFormula(cell.formula)
 			value, _ := g.EvalFormula(formula)
 
@@ -223,16 +233,16 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	var currentNode *f1F.Node
 
 	currentNode = f.GetEntryNode()
-	fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
-	fmt.Printf("Evaluating formula...\n")
-	fmt.Printf("- Entry: %v\n", currentNode.Value())
+	logger.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+	logger.Printf("Evaluating formula...\n")
+	logger.Printf("- Entry: %v\n", currentNode.Value())
 
 	stackHeight := g.callstack.Len()
 	err := g.evalNode(currentNode)
 	if g.callstack.Len() != stackHeight {
 		// panic(errors.New(fmt.Sprintf("Stack not disposed properly: was %d, now %d",
 		// 	stackHeight, g.callstack.Len())))
-		fmt.Printf("***Stack not disposed properly: was %d, now %d ***\n",
+		logger.Printf("***Stack not disposed properly: was %d, now %d ***\n",
 			stackHeight, g.callstack.Len())
 	}
 
@@ -247,8 +257,8 @@ func (g *Engine) EvalFormula(f *f1F.Formula) (value interface{}, valueType f1F.N
 	}
 
 	value = g.ax
-	fmt.Printf("f() = %v\n", value)
-	fmt.Printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n")
+	logger.Printf("f() = %v\n", value)
+	logger.Printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n")
 	switch g.ax.(type) {
 	case string:
 		valueType = f1F.NodeTypeLiteral
@@ -399,6 +409,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 		if invoke.arity == 1 {
 			var operand1 interface{}
 			g.pop(&operand1)
+			logger.Printf("Call1: %s, %v\n", invoke.fn, operand1)
 			if output, err := funs.Call1(invoke.fn, operand1); err != nil {
 				ret = err
 			} else {
@@ -408,6 +419,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 			var operand1, operand2 interface{}
 			g.pop(&operand2)
 			g.pop(&operand1)
+			logger.Printf("Call2: %s, %v, %v\n", invoke.fn, operand1, operand2)
 			if output, err := funs.Call2(invoke.fn, operand1, operand2); err != nil {
 				ret = err
 			} else {
@@ -418,6 +430,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand3)
 			g.pop(&operand2)
 			g.pop(&operand1)
+			logger.Printf("Call3: %s, %v, %v, %v\n", invoke.fn, operand1, operand2, operand3)
 			if output, err := funs.Call3(invoke.fn, operand1, operand2, operand3); err != nil {
 				ret = err
 			} else {
@@ -429,6 +442,7 @@ func (g *Engine) runStack(invoke *Invoke) {
 			g.pop(&operand3)
 			g.pop(&operand2)
 			g.pop(&operand1)
+			logger.Printf("Call4: %s, %v, %v, %v, %v\n", invoke.fn, operand1, operand2, operand3, operand4)
 			if output, err := funs.Call4(invoke.fn, operand1, operand2, operand3, operand4); err != nil {
 				ret = err
 			} else {
@@ -560,7 +574,7 @@ func (g *Engine) callFunc(node *f1F.Node) (err error) {
 			stackHeight := g.callstack.Len()
 			err = g.callFunc(childNode)
 			if stackHeight != g.callstack.Len() {
-				fmt.Printf("***Stack corruption: was %d, now %d***\n", stackHeight, g.callstack.Len())
+				logger.Printf("***Stack corruption: was %d, now %d***\n", stackHeight, g.callstack.Len())
 			}
 
 			if err != nil {
@@ -583,14 +597,14 @@ func (g *Engine) callDeref(node *f1F.Node) {
 	if strings.Contains(cellIDString, ":") {
 		// Request for a range, even for single dimension ranges
 		if cellRange, err := g.GetRange(cellIDString); err != nil {
-			fmt.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+			logger.Printf("Could not deref %s. Reason: %v", cellIDString, err)
 			return
 		} else {
 			if cells, ok := cellRange.ToSlice(); ok {
 				result := make([]interface{}, len(cells))
 				for i := range result {
 					if formulaString := cells[i].formula; formulaString != "" {
-						fmt.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
+						logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
 						formula := f1F.NewFormula(formulaString)
 						g.EvalFormula(formula) // g.ax is updated
 						result[i] = g.ax
@@ -621,27 +635,27 @@ func (g *Engine) callDeref(node *f1F.Node) {
 
 	} else {
 		if cell, err := g.GetCell(cellIDString); err != nil {
-			fmt.Printf("Could not deref %s. Reason: %v\n", cellIDString, err)
+			logger.Printf("Could not deref %s. Reason: %v\n", cellIDString, err)
 			g.activeSheet = activeSheet
 			return
 		} else if cell.formula != "" {
-			fmt.Printf("FORMULA: %s\n", cell.formula)
+			logger.Printf("FORMULA: %s\n", cell.formula)
 			formula := f1F.NewFormula(cell.formula)
 			g.EvalFormula(formula) // g.ax is updated
 		} else if cell.value != "" {
 			g.ax = cell.value
 		}
 	}
-	fmt.Printf(">>>>>\n")
+	logger.Printf(">>>>>\n")
 	if strings.Contains(cellIDString, "!") {
-		fmt.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
+		logger.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
 	} else if activeSheet != nil {
-		fmt.Printf("Deref'd cell(s): %s!%s = %v\n", activeSheet.Name, cellIDString, g.ax)
+		logger.Printf("Deref'd cell(s): %s!%s = %v\n", activeSheet.Name, cellIDString, g.ax)
 	} else {
-		fmt.Printf("Deref'd cell(s): default first sheet! %s = %v\n", cellIDString, g.ax)
+		logger.Printf("Deref'd cell(s): default first sheet! %s = %v\n", cellIDString, g.ax)
 	}
-	fmt.Printf("Stack height: %d\n", g.callstack.Len())
-	fmt.Printf("<<<<<\n")
+	logger.Printf("Stack height: %d\n", g.callstack.Len())
+	logger.Printf("<<<<<\n")
 	g.activeSheet = activeSheet
 }
 
