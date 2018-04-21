@@ -530,46 +530,95 @@ func TestAdvancedFunctions(t *testing.T) {
 // 	}
 // }
 
-// func TestExecute(t *testing.T) {
-// 	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
-// 	var engine *Engine
-// 	var err error
-// 	var inputs map[string]string
-// 	var outputs *map[string]string
+func TestExecute(t *testing.T) {
+	localFile, _ := xlsx.OpenFile("../testdocs/dup.xlsx")
+	var engine *Engine
+	var err error
+	var inputs map[string]string
+	var outputs *map[string]OutParam
 
-// 	engine = NewEngine(localFile)
-// 	inputs = map[string]string{
-// 		"Input!E18": "1000000.0",
-// 		"Input!E20": "45000.0",
-// 	}
+	engine = NewEngine(localFile)
+	inputs = map[string]string{
+		"Input!E18": "1000000.0",
+		"Input!E20": "45000.0",
+	}
 
-// 	outputs = &map[string]string{
-// 		"Input!E35": "",
-// 	}
+	outputs = &map[string]OutParam{
+		"Input!E35": NewOutParam("string"),
+	}
 
-// 	err = engine.Execute(inputs, outputs)
-// 	if err != nil {
-// 		t.Errorf("Unexpected error %v", err)
-// 	}
-// 	if (*outputs)["Input!E35"] == "" {
-// 		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
-// 	}
+	err = engine.Execute(inputs, outputs)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if (*outputs)["Input!E35"].Value == "" {
+		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
+	}
 
-// 	engine = NewEngine(localFile)
-// 	inputs = map[string]string{
-// 		"Input!E18": "2000000.0",
-// 		"Input!E20": "0.0",
-// 	}
+	engine = NewEngine(localFile)
+	inputs = map[string]string{
+		"Input!E18": "2000000.0",
+		"Input!E20": "0.0",
+	}
 
-// 	outputs = &map[string]string{
-// 		"Input!E35": "",
-// 	}
+	outputs = &map[string]OutParam{
+		"Input!E35": NewOutParam("string"),
+	}
 
-// 	err = engine.Execute(inputs, outputs)
-// 	if err != nil {
-// 		t.Errorf("Unexpected error %v", err)
-// 	}
-// 	if (*outputs)["Input!E35"] == "" {
-// 		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
-// 	}
-// }
+	err = engine.Execute(inputs, outputs)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if (*outputs)["Input!E35"].Value == "" {
+		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
+	}
+}
+
+func TestExecuteRangeRef(t *testing.T) {
+	localFile, _ := xlsx.OpenFile("../testdocs/formula1-x1.xlsx")
+	var engine *Engine
+	var err error
+	var inputs map[string]string
+	var outputs *map[string]OutParam
+
+	engine = NewEngine(localFile)
+	inputs = map[string]string{
+		"Input!A1": "1000000.0",
+	}
+
+	outputs = &map[string]OutParam{
+		"Discounts!A2:B6": NewOutParam("$ref"),
+		"Discounts!D2:D4": NewOutParam("$ref"),
+	}
+
+	err = engine.Execute(inputs, outputs)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if (*outputs)["Discounts!A2:B6"].Value == nil {
+		t.Errorf("Expected: Non-nil")
+	}
+	if (*outputs)["Discounts!D2:D4"].Value == nil {
+		t.Errorf("Expected: Non-nil")
+	}
+
+	if values, ok := (*outputs)["Discounts!A2:B6"].Value.([][]string); ok {
+		if len(values[0][0]) == 0 {
+			t.Errorf("Expected: Non-empty\tActual: Empty")
+		} else {
+			t.Logf("Value: %v\n", values)
+		}
+	} else {
+		t.Errorf("Expected: 2D Array")
+	}
+
+	if values, ok := (*outputs)["Discounts!D2:D4"].Value.([]string); ok {
+		if len(values[0]) == 0 {
+			t.Errorf("Expected: Non-empty\tActual: Empty")
+		} else {
+			t.Logf("Value: %v\n", values)
+		}
+	} else {
+		t.Errorf("Expected: 1D Array")
+	}
+}

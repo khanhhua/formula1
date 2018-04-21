@@ -45,6 +45,11 @@ type Range struct {
 	rowCount int
 }
 
+type OutParam struct {
+	Format string
+	Value  interface{}
+}
+
 var logger *log.Logger
 
 func init() {
@@ -87,6 +92,13 @@ func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
 		xlFile:    xlFile,
 		callstack: stack.New(),
+	}
+}
+
+func NewOutParam(format string) OutParam {
+	return OutParam{
+		Format: format,
+		Value:  nil,
 	}
 }
 
@@ -202,26 +214,73 @@ func (g *Engine) Inspect() map[string]string {
 }
 
 // Execute the g
-func (g *Engine) Execute(inputs map[string]string, outputs *map[string]string) (err error) {
+func (g *Engine) Execute(inputs map[string]string, outputs *map[string]OutParam) (err error) {
 	for cellID, value := range inputs {
 		g.SetCell(cellID, value)
 	}
 
-	for cellID := range *outputs {
-		var cell Cell
-		cell, err = g.GetCell(cellID)
-		if err != nil {
-			logger.Printf("***Could not get cell %s. Reason: %v\n", cellID, err)
-			return
-		}
-		if cell.formula != "" {
-			logger.Printf("Formula: %s\n\n", cell.formula)
-			formula := f1F.NewFormula(cell.formula)
-			value, _ := g.EvalFormula(formula)
+	for cellIDString := range *outputs {
+		if strings.Contains(cellIDString, ":") {
+			if (*outputs)[cellIDString].Format != "$ref" {
+				logger.Printf("CellID %s must have $ref format", cellIDString)
+				continue
+			}
 
-			(*outputs)[cellID] = fmt.Sprintf("%v", value)
+			var cellRange Range
+			if cellRange, err = g.GetRange(cellIDString); err != nil {
+				logger.Printf("***Could not get range %s. Reason: %v\n", cellIDString, err)
+				return
+			}
+
+			if cells, ok := cellRange.ToSlice(); ok {
+				result := make([]string, len(cells))
+				for i := range result {
+					if formulaString := cells[i].formula; formulaString != "" {
+						logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
+						formula := f1F.NewFormula(formulaString)
+						g.EvalFormula(formula) // g.ax is updated
+						result[i] = fmt.Sprintf("%v", g.ax)
+					} else {
+						result[i] = fmt.Sprintf("%v", cells[i].value)
+					}
+				}
+				(*outputs)[cellIDString] = OutParam{Value: result}
+			} else if cells, ok := cellRange.To2DSlice(); ok {
+				result := make([][]string, cellRange.rowCount)
+				colCount := cellRange.colCount
+				for i := 0; i < cellRange.rowCount; i++ {
+					result[i] = make([]string, colCount)
+					for j := 0; j < cellRange.colCount; j++ {
+						if formulaString := cells[i][j].formula; formulaString != "" {
+							formula := f1F.NewFormula(formulaString)
+							g.EvalFormula(formula) // g.ax is updated
+							result[i][j] = fmt.Sprintf("%v", g.ax)
+						} else {
+							result[i][j] = fmt.Sprintf("%v", cells[i][j].value)
+						}
+
+					}
+				}
+				(*outputs)[cellIDString] = OutParam{Value: result}
+			} else {
+				continue
+			}
 		} else {
-			(*outputs)[cellID] = fmt.Sprintf("%v", cell.value)
+			var cell Cell
+			cell, err = g.GetCell(cellIDString)
+			if err != nil {
+				logger.Printf("***Could not get cell %s. Reason: %v\n", cellIDString, err)
+				return
+			}
+			if cell.formula != "" {
+				logger.Printf("Formula: %s\n\n", cell.formula)
+				formula := f1F.NewFormula(cell.formula)
+				value, _ := g.EvalFormula(formula)
+
+				(*outputs)[cellIDString] = OutParam{Value: fmt.Sprintf("%v", value)}
+			} else {
+				(*outputs)[cellIDString] = OutParam{Value: fmt.Sprintf("%v", cell.value)}
+			}
 		}
 	}
 
