@@ -244,7 +244,7 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 		var outer [][]interface{}
 		var inner []interface{}
 		outer = lookupRange.([][]interface{})
-		for i := 0; i < len(outer); i++ {
+		for i := len(outer) - 1; i >= 0; i-- {
 			inner = outer[i]
 
 			var referenceValue interface{}
@@ -253,7 +253,7 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 			switch referenceValue.(type) {
 			case float64:
 				if approx {
-					if result, ok := value.(float64); ok && result == referenceValue.(float64) {
+					if result, ok := value.(float64); ok && result >= referenceValue.(float64) {
 						return inner[nativeIndex]
 					}
 				} else {
@@ -263,7 +263,7 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 				}
 			case string:
 				if approx {
-					if result, ok := value.(string); ok && result == referenceValue.(string) {
+					if result, ok := value.(string); ok && result >= referenceValue.(string) {
 						return inner[nativeIndex]
 					}
 				} else {

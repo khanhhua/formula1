@@ -88,6 +88,41 @@ func TestVLOOKUPfloat64(t *testing.T) {
 	}
 }
 
+func TestVLOOKUPfloat64Approx(t *testing.T) {
+	var lookupRange = make([][]interface{}, 3)
+	lookupRange[0] = make([]interface{}, 1)
+	lookupRange[0][0] = 1.0
+
+	lookupRange[1] = make([]interface{}, 1)
+	lookupRange[1][0] = 2.0
+
+	lookupRange[2] = make([]interface{}, 1)
+	lookupRange[2][0] = 3.0
+
+	if result := VLOOKUP(1.5, lookupRange, 1, true); result != 1.0 {
+		t.Errorf("Expected: 1\tActual:%v", result)
+	}
+
+	lookupRange = make([][]interface{}, 2)
+	lookupRange[0] = make([]interface{}, 3)
+	lookupRange[0][0] = 1.0
+	lookupRange[0][1] = 10.0
+	lookupRange[0][2] = 100.0
+
+	lookupRange[1] = make([]interface{}, 3)
+	lookupRange[1][0] = 21.0
+	lookupRange[1][1] = 22.0
+	lookupRange[1][2] = 23.0
+
+	if result := VLOOKUP(10.0, lookupRange, 3, true); result != 100.0 {
+		t.Errorf("Expected: 100.0\tActual:%v", result)
+	}
+
+	if result := VLOOKUP(99.0, lookupRange, 3, true); result != 23.0 {
+		t.Errorf("Expected: 23\tActual:%v", result)
+	}
+}
+
 func TestVLOOKUPstring(t *testing.T) {
 	var lookupRange = make([][]interface{}, 2)
 	lookupRange[0] = make([]interface{}, 1)
