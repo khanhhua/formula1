@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -751,4 +752,9 @@ func (g *Engine) callIf(node *f1F.Node) bool {
 		return true
 	}
 	return true
+}
+
+// MarshalJSON serializes out param
+func (outParam OutParam) MarshalJSON() ([]byte, error) {
+	return json.Marshal(outParam.Value)
 }
