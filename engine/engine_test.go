@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"math"
 	"os"
 	"testing"
@@ -22,6 +23,31 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	os.Exit(code)
+}
+
+func TestOutParamMarshalJSON(t *testing.T) {
+	outParam := NewOutParam("string")
+
+	outParam.Value = `10s`
+	if serialized, err := json.Marshal(outParam); err != nil {
+		t.Error(err)
+	} else if string(serialized) != `"10s"` {
+		t.Errorf("Expected: 10s\tActual: %s", serialized)
+	}
+
+	outParam.Value = []string{"10s", "20s"}
+	if serialized, err := json.Marshal(outParam); err != nil {
+		t.Error(err)
+	} else if string(serialized) != `["10s","20s"]` {
+		t.Errorf("Expected: 10s\tActual: %s", serialized)
+	}
+
+	outParam.Value = [][]string{{"10s", "20s"}, {"11s", "22s"}}
+	if serialized, err := json.Marshal(outParam); err != nil {
+		t.Error(err)
+	} else if string(serialized) != `[["10s","20s"],["11s","22s"]]` {
+		t.Errorf("Expected: 10s\tActual: %s", serialized)
+	}
 }
 
 func TestRangeToSlice(t *testing.T) {
