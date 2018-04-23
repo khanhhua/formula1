@@ -91,6 +91,7 @@ func (cellRange *Range) To2DSlice() (cells [][]Cell, ok bool) {
 // NewEngine Create a new g to execute formula suitable for xlFile
 func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
+		cache:     make(map[string]interface{}),
 		xlFile:    xlFile,
 		callstack: stack.New(),
 	}
@@ -654,58 +655,65 @@ func (g *Engine) callDeref(node *f1F.Node) {
 	cellIDString := node.Value().(string)
 	activeSheet := g.activeSheet
 
-	if strings.Contains(cellIDString, ":") {
-		// Request for a range, even for single dimension ranges
-		if cellRange, err := g.GetRange(cellIDString); err != nil {
-			logger.Printf("Could not deref %s. Reason: %v", cellIDString, err)
-			return
-		} else {
-			if cells, ok := cellRange.ToSlice(); ok {
-				result := make([]interface{}, len(cells))
-				for i := range result {
-					if formulaString := cells[i].formula; formulaString != "" {
-						logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
-						formula := f1F.NewFormula(formulaString)
-						g.EvalFormula(formula) // g.ax is updated
-						result[i] = g.ax
-					} else {
-						result[i] = cells[i].value
-					}
-				}
-				g.ax = result
-			} else if cells, ok := cellRange.To2DSlice(); ok {
-				result := make([][]interface{}, cellRange.rowCount)
-				colCount := cellRange.colCount
-				for i := 0; i < cellRange.rowCount; i++ {
-					result[i] = make([]interface{}, colCount)
-					for j := 0; j < cellRange.colCount; j++ {
-						if formulaString := cells[i][j].formula; formulaString != "" {
+	if result, ok := g.cache[cellIDString]; ok {
+		g.ax = result
+	} else {
+		if strings.Contains(cellIDString, ":") {
+			// Request for a range, even for single dimension ranges
+			if cellRange, err := g.GetRange(cellIDString); err != nil {
+				logger.Printf("Could not deref %s. Reason: %v", cellIDString, err)
+				return
+			} else {
+				if cells, ok := cellRange.ToSlice(); ok {
+					result := make([]interface{}, len(cells))
+					for i := range result {
+						if formulaString := cells[i].formula; formulaString != "" {
+							logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
 							formula := f1F.NewFormula(formulaString)
 							g.EvalFormula(formula) // g.ax is updated
-							result[i][j] = g.ax
+							result[i] = g.ax
 						} else {
-							result[i][j] = cells[i][j].value
+							result[i] = cells[i].value
 						}
-
 					}
+					g.ax = result
+					g.cache[cellIDString] = result
+				} else if cells, ok := cellRange.To2DSlice(); ok {
+					result := make([][]interface{}, cellRange.rowCount)
+					colCount := cellRange.colCount
+					for i := 0; i < cellRange.rowCount; i++ {
+						result[i] = make([]interface{}, colCount)
+						for j := 0; j < cellRange.colCount; j++ {
+							if formulaString := cells[i][j].formula; formulaString != "" {
+								formula := f1F.NewFormula(formulaString)
+								g.EvalFormula(formula) // g.ax is updated
+								result[i][j] = g.ax
+							} else {
+								result[i][j] = cells[i][j].value
+							}
+
+						}
+					}
+					g.ax = result
+					g.cache[cellIDString] = result
 				}
-				g.ax = result
+			}
+		} else {
+			if cell, err := g.GetCell(cellIDString); err != nil {
+				logger.Printf("Could not deref %s. Reason: %v\n", cellIDString, err)
+				g.activeSheet = activeSheet
+				return
+			} else if cell.formula != "" {
+				logger.Printf("FORMULA: %s\n", cell.formula)
+				formula := f1F.NewFormula(cell.formula)
+				g.EvalFormula(formula) // g.ax is updated
+				g.cache[cellIDString] = g.ax
+			} else if cell.value != "" {
+				g.ax = cell.value
 			}
 		}
-
-	} else {
-		if cell, err := g.GetCell(cellIDString); err != nil {
-			logger.Printf("Could not deref %s. Reason: %v\n", cellIDString, err)
-			g.activeSheet = activeSheet
-			return
-		} else if cell.formula != "" {
-			logger.Printf("FORMULA: %s\n", cell.formula)
-			formula := f1F.NewFormula(cell.formula)
-			g.EvalFormula(formula) // g.ax is updated
-		} else if cell.value != "" {
-			g.ax = cell.value
-		}
 	}
+
 	logger.Printf(">>>>>\n")
 	if strings.Contains(cellIDString, "!") {
 		logger.Printf("Deref'd cell(s): %s = %v\n", cellIDString, g.ax)
