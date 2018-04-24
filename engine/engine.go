@@ -381,7 +381,14 @@ func (g *Engine) runStack(invoke *Invoke) {
 
 		for i := invoke.arity; i >= 1; i-- {
 			g.pop(&operand)
-			ax += operand.(float64)
+			switch operand.(type) {
+			case float64:
+				ax += operand.(float64)
+				break
+			case int:
+				ax += float64(operand.(int))
+				break
+			}
 		}
 		ret = ax
 	} else if invoke.fn == "-" {
@@ -394,6 +401,9 @@ func (g *Engine) runStack(invoke *Invoke) {
 			case float64:
 				ax += operand.(float64)
 				break
+			case int:
+				ax += float64(operand.(int))
+				break
 			}
 		}
 
@@ -402,29 +412,59 @@ func (g *Engine) runStack(invoke *Invoke) {
 		case float64:
 			ret = operand.(float64) - ax
 			break
+		case int:
+			ret = float64(operand.(int)) - ax
+			break
 		default:
 			ret = 0.0
 			break
 		}
 	} else if invoke.fn == "*" {
 		var operand interface{}
-		var ax float64 = 1.0
+		var ax float64
+		ax = 1.0
 
 		for i := invoke.arity; i >= 1; i-- {
 			g.pop(&operand)
-			ax *= operand.(float64)
+
+			switch operand.(type) {
+			case float64:
+				ax *= operand.(float64)
+				break
+			case int:
+				ax *= float64(operand.(int))
+				break
+			}
 		}
 		ret = ax
 	} else if invoke.fn == "/" {
 		var operand interface{}
-		var ax float64 = 1
+		var ax float64 = 1.0
 
 		for i := invoke.arity; i >= 2; i-- {
 			g.pop(&operand)
-			ax *= operand.(float64)
+
+			switch operand.(type) {
+			case float64:
+				ax *= operand.(float64)
+				break
+			case int:
+				ax *= float64(operand.(int))
+				break
+			}
 		}
+
 		g.pop(&operand)
-		ret = operand.(float64) / ax
+		switch operand.(type) {
+		case float64:
+			ret = operand.(float64) / ax
+			break
+		case int:
+			ret = float64(operand.(int)) / ax
+			break
+		default:
+			ret = errors.New("N/A")
+		}
 	} else if strings.Contains(">=<=", invoke.fn) {
 		var operand1, operand2 interface{}
 		g.pop(&operand2)

@@ -106,29 +106,29 @@ func TestVLOOKUPfloat64Approx(t *testing.T) {
 	lookupRange = make([][]interface{}, 3)
 	lookupRange[0] = make([]interface{}, 3)
 	lookupRange[0][0] = 0
-	lookupRange[0][1] = 0
-	lookupRange[0][2] = -17
+	lookupRange[0][1] = "0-17"
+	lookupRange[0][2] = 72
 
 	lookupRange[1] = make([]interface{}, 3)
 	lookupRange[1][0] = 18
 	lookupRange[1][1] = "18-30"
-	lookupRange[1][2] = 19
+	lookupRange[1][2] = 72
 
 	lookupRange[2] = make([]interface{}, 3)
 	lookupRange[2][0] = 31
 	lookupRange[2][1] = "31-40"
-	lookupRange[2][2] = 226
+	lookupRange[2][2] = 72
 
-	if result := VLOOKUP(0, lookupRange, 3, true); result != -17 {
-		t.Errorf("Expected: -17\tActual:%v", result)
+	if result := VLOOKUP(0, lookupRange, 3, true); result != 72 {
+		t.Errorf("Expected: 72\tActual: %v", result)
 	}
 
-	if result := VLOOKUP(18, lookupRange, 3, true); result != 19 {
-		t.Errorf("Expected: 19\tActual:%v", result)
+	if result := VLOOKUP(18, lookupRange, 3, true); result != 72 {
+		t.Errorf("Expected: 72\tActual: %v", result)
 	}
 
-	if result := VLOOKUP(19, lookupRange, 3, true); result != 19 {
-		t.Errorf("Expected: 19\tActual:%v", result)
+	if result := VLOOKUP(19, lookupRange, 3, true); result != 72 {
+		t.Errorf("Expected: 72\tActual: %v", result)
 	}
 }
 
