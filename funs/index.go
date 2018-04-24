@@ -60,8 +60,11 @@ var a4inter = map[string]func(interface{}, interface{}, interface{}, interface{}
 		} else {
 			return "N/A"
 		}
-		if result, ok := p4.(float64); ok && result == 0 {
+
+		if result, ok := p4.(int); ok {
 			approx = result == 1
+		} else if result, ok := p4.(float64); ok {
+			approx = result == 1.0
 		} else {
 			approx = false
 		}

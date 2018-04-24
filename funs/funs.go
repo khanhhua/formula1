@@ -2,6 +2,7 @@ package funs
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -252,12 +253,17 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 			referenceValue = inner[0]
 			switch referenceValue.(type) {
 			case int:
+				fmt.Printf("Reference type is int\n")
 				if approx {
-					if result, ok := value.(int); ok && result >= referenceValue.(int) {
+					if result, ok := value.(float64); ok && int(result) >= referenceValue.(int) {
+						return inner[nativeIndex]
+					} else if result, ok := value.(int); ok && result >= referenceValue.(int) {
 						return inner[nativeIndex]
 					}
 				} else {
-					if result, ok := value.(int); ok && result == referenceValue.(int) {
+					if result, ok := value.(int); ok && int(result) == referenceValue.(int) {
+						return inner[nativeIndex]
+					} else if result, ok := value.(int); ok && result == referenceValue.(int) {
 						return inner[nativeIndex]
 					}
 				}
@@ -265,13 +271,18 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 				if approx {
 					if result, ok := value.(float64); ok && result >= referenceValue.(float64) {
 						return inner[nativeIndex]
+					} else if result, ok := value.(int); ok && float64(result) >= referenceValue.(float64) {
+						return inner[nativeIndex]
 					}
 				} else {
 					if result, ok := value.(float64); ok && result == referenceValue.(float64) {
 						return inner[nativeIndex]
+					} else if result, ok := value.(int); ok && float64(result) == referenceValue.(float64) {
+						return inner[nativeIndex]
 					}
 				}
 			case string:
+				fmt.Printf("Reference type is string\n")
 				if approx {
 					if result, ok := value.(string); ok && result >= referenceValue.(string) {
 						return inner[nativeIndex]
