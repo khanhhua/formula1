@@ -251,6 +251,16 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 
 			referenceValue = inner[0]
 			switch referenceValue.(type) {
+			case int:
+				if approx {
+					if result, ok := value.(int); ok && result >= referenceValue.(int) {
+						return inner[nativeIndex]
+					}
+				} else {
+					if result, ok := value.(int); ok && result == referenceValue.(int) {
+						return inner[nativeIndex]
+					}
+				}
 			case float64:
 				if approx {
 					if result, ok := value.(float64); ok && result >= referenceValue.(float64) {
