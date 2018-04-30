@@ -598,6 +598,10 @@ func TestExecute(t *testing.T) {
 	if (*outputs)["Input!E35"].Value == "" {
 		t.Errorf("Expected: Non-empty\tActual: %s", (*outputs)["Input!E68"])
 	}
+
+	if actual := len(engine.formulaCache); actual == 0 {
+		t.Errorf("Expected: len > 0\tActual: %v\n", actual)
+	}
 }
 
 func TestExecuteRangeRef(t *testing.T) {
