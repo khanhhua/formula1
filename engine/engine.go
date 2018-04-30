@@ -25,7 +25,8 @@ type Engine struct {
 	// Execution stack
 	callstack *stack.Stack
 	// Execute and remember stuff here
-	cache map[string]interface{}
+	cache        map[string]interface{}
+	formulaCache map[string]*f1F.Formula
 }
 
 type Invoke struct {
@@ -91,9 +92,10 @@ func (cellRange *Range) To2DSlice() (cells [][]Cell, ok bool) {
 // NewEngine Create a new g to execute formula suitable for xlFile
 func NewEngine(xlFile *xlsx.File) *Engine {
 	return &Engine{
-		cache:     make(map[string]interface{}),
-		xlFile:    xlFile,
-		callstack: stack.New(),
+		cache:        make(map[string]interface{}),
+		formulaCache: make(map[string]*f1F.Formula),
+		xlFile:       xlFile,
+		callstack:    stack.New(),
 	}
 }
 
@@ -239,7 +241,16 @@ func (g *Engine) Execute(inputs map[string]string, outputs *map[string]OutParam)
 				for i := range result {
 					if formulaString := cells[i].formula; formulaString != "" {
 						logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
-						formula := f1F.NewFormula(formulaString)
+
+						var formula *f1F.Formula
+						if cached, ok := g.formulaCache[formulaString]; ok {
+							logger.Printf("Formula found '%s' in cache\n", formulaString)
+							formula = cached
+						} else {
+							formula = f1F.NewFormula(formulaString)
+							g.formulaCache[formulaString] = formula
+						}
+
 						g.EvalFormula(formula) // g.ax is updated
 						result[i] = fmt.Sprintf("%v", g.ax)
 					} else {
@@ -254,7 +265,15 @@ func (g *Engine) Execute(inputs map[string]string, outputs *map[string]OutParam)
 					result[i] = make([]string, colCount)
 					for j := 0; j < cellRange.colCount; j++ {
 						if formulaString := cells[i][j].formula; formulaString != "" {
-							formula := f1F.NewFormula(formulaString)
+							var formula *f1F.Formula
+							if cached, ok := g.formulaCache[formulaString]; ok {
+								logger.Printf("Formula found '%s' in cache\n", formulaString)
+								formula = cached
+							} else {
+								formula = f1F.NewFormula(formulaString)
+								g.formulaCache[formulaString] = formula
+							}
+
 							g.EvalFormula(formula) // g.ax is updated
 							result[i][j] = fmt.Sprintf("%v", g.ax)
 						} else {
@@ -276,7 +295,16 @@ func (g *Engine) Execute(inputs map[string]string, outputs *map[string]OutParam)
 			}
 			if cell.formula != "" {
 				logger.Printf("Formula: %s\n\n", cell.formula)
-				formula := f1F.NewFormula(cell.formula)
+
+				var formula *f1F.Formula
+				if cached, ok := g.formulaCache[cell.formula]; ok {
+					logger.Printf("Formula found '%s' in cache\n", cell.formula)
+					formula = cached
+				} else {
+					formula = f1F.NewFormula(cell.formula)
+					g.formulaCache[cell.formula] = formula
+				}
+
 				value, _ := g.EvalFormula(formula)
 
 				(*outputs)[cellIDString] = OutParam{Value: fmt.Sprintf("%v", value)}
@@ -709,7 +737,15 @@ func (g *Engine) callDeref(node *f1F.Node) {
 					for i := range result {
 						if formulaString := cells[i].formula; formulaString != "" {
 							logger.Printf("Evaluating cell[%d]: %s, f(x) %s\n", i, cellIDString, formulaString)
-							formula := f1F.NewFormula(formulaString)
+
+							var formula *f1F.Formula
+							if cached, ok := g.formulaCache[formulaString]; ok {
+								logger.Printf("Formula found '%s' in cache\n", formulaString)
+								formula = cached
+							} else {
+								formula = f1F.NewFormula(formulaString)
+							}
+
 							g.EvalFormula(formula) // g.ax is updated
 							result[i] = g.ax
 						} else {

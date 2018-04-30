@@ -282,7 +282,6 @@ func VLOOKUP(value interface{}, lookupRange interface{}, index int, approx bool)
 					}
 				}
 			case string:
-				fmt.Printf("Reference type is string\n")
 				if approx {
 					if result, ok := value.(string); ok && result >= referenceValue.(string) {
 						return inner[nativeIndex]
